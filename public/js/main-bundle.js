@@ -25948,10 +25948,11 @@ var CodeMirrorViewer = class {
       syntaxHighlighting(customHighlightStyle),
       syntaxHighlighting(defaultHighlightStyle),
       highlightSelectionMatches(),
+      // 空白字符显示
+      whitespacePlugin,
+      whitespaceTheme,
       // PVF 语言支持
       this.languageCompartment.of([]),
-      // 空白字符显示隔离舱
-      this.whitespaceCompartment.of([]),
       // 搜索
       keymap.of(searchKeymap),
       // 额外的快捷键
@@ -25999,6 +26000,7 @@ var CodeMirrorViewer = class {
   loadFile(content2, filename) {
     this.currentFile = filename;
     this.setLanguage(filename);
+    this.setShowWhitespace(true);
     this.view.dispatch({
       changes: { from: 0, to: this.view.state.doc.length, insert: content2 }
     });

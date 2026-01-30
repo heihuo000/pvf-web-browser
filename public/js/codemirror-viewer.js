@@ -440,11 +440,12 @@ class CodeMirrorViewer {
             syntaxHighlighting(defaultHighlightStyle),
             highlightSelectionMatches(),
 
+            // 空白字符显示
+            whitespacePlugin,
+            whitespaceTheme,
+
             // PVF 语言支持
             this.languageCompartment.of([]),
-
-            // 空白字符显示隔离舱
-            this.whitespaceCompartment.of([]),
 
             // 搜索
             keymap.of(searchKeymap),
@@ -510,6 +511,9 @@ class CodeMirrorViewer {
 
         // 设置语言支持
         this.setLanguage(filename);
+
+        // 启用空白字符显示
+        this.setShowWhitespace(true);
 
         // 更新编辑器内容
         this.view.dispatch({
