@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Prism.js 测试</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
+    <style>
+        body {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+        }
+        .token.section { color: #569cd6; font-weight: bold; }
+        .token.section .bracket { color: #ffd700; }
+        .token.string { color: #ce9178; }
+        .token.string-link { color: #4ec9b0; font-style: italic; }
+        .token.comment { color: #6a9955; font-style: italic; }
+        .token.number { color: #b5cea8; }
+        .token.identifier { color: #9cdcfe; }
+        .token.operator { color: #d4d4d4; }
+        .token.punctuation { color: #d4d4d4; }
+    </style>
+</head>
+<body>
+    <h1>PVF 语法高亮测试</h1>
+    
+    <h2>测试 1: 基本标签</h2>
+    <pre class="language-pvf"><code>[name]角色名称
+[code]12345
+[create]创建对象</code></pre>
+    
+    <h2>测试 2: 字符串</h2>
+    <pre class="language-pvf"><code>`这是一个字符串`
+`另一个字符串`</code></pre>
+    
+    <h2>测试 3: 字符串链接</h2>
+    <pre class="language-pvf"><code>&lt;12345::name`显示文字`&gt;</code></pre>
+    
+    <h2>测试 4: 注释</h2>
+    <pre class="language-pvf"><code># 这是单行注释
+// 这也是注释
+/* 这是
+   块注释 */</code></pre>
+    
+    <h2>测试 5: 数字</h2>
+    <pre class="language-pvf"><code>123
+12.34
+0xFF00
+-123</code></pre>
+    
+    <h2>测试 6: 完整示例</h2>
+    <pre class="language-pvf"><code>#PVF_File
+[name]测试角色
+[code]12345
+[create]创建角色
+`角色描述`
+&lt;54321::name`技能名称`&gt;
+# 这是一个注释
+123
+0xFF00</code></pre>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-clike.min.js"></script>
+    <script>
+        // 注册 PVF 脚本语言
+        Prism.languages.pvf = {
+            'section': {
+                pattern: /\[[^\]]*\]/,
+                greedy: true,
+                inside: {
+                    'bracket': {
+                        pattern: /[\[\]]/,
+                        inside: {
+                            'punctuation': /[\[\]]/
+                        }
+                    },
+                    'content': {
+                        pattern: /[^\[\]]+/,
+                        inside: {
+                            'keyword': /\b(name|code|icon|create|add|remove|move|skill|effect|animation)\b/
+                        }
+                    }
+                }
+            },
+            'string': {
+                pattern: /`(?:\\`|[^`])*`/,
+                greedy: true,
+                inside: {
+                    'punctuation': /^`|`$/
+                }
+            },
+            'string-link': {
+                pattern: /<(?:[^>]|`)*>/,
+                greedy: true,
+                inside: {
+                    'punctuation': /^<|>$/,
+                    'id': {
+                        pattern: /\d+/,
+                        alias: 'number'
+                    },
+                    'separator': {
+                        pattern: /::/,
+                        alias: 'punctuation'
+                    },
+                    'string': {
+                        pattern: /`(?:\\`|[^`])*`/,
+                        greedy: true
+                    }
+                }
+            },
+            'comment': [
+                {
+                    pattern: /#.*/,
+                    greedy: true,
+                    alias: 'comment-line'
+                },
+                {
+                    pattern: /\/\/.*/,
+                    greedy: true,
+                    alias: 'comment-line'
+                },
+                {
+                    pattern: /\/\*[\s\S]*?\*\//,
+                    greedy: true,
+                    alias: 'comment-block'
+                }
+            ],
+            'number': [
+                {
+                    pattern: /0x[0-9A-Fa-f]+/,
+                    greedy: true,
+                    alias: 'number-hex'
+                },
+                {
+                    pattern: /[-+]?\b[0-9]+(?:\.[0-9]+)?(?:[eE][-+]?[0-9]+)?\b/,
+                    greedy: true,
+                    alias: 'number-decimal'
+                }
+            ],
+            'identifier': {
+                pattern: /\b[a-zA-Z_][a-zA-Z0-9_]*\b/,
+                greedy: true
+            },
+            'operator': {
+                pattern: /[=+\-*/%&|<>!^~]+/,
+                greedy: true
+            },
+            'punctuation': /[(){}\[\],;:]/
+        };
+        
+        // 应用高亮
+        Prism.highlightAll();
+        
+        console.log('Prism.js loaded:', typeof Prism !== 'undefined');
+        console.log('PVF language registered:', !!Prism.languages.pvf);
+    </script>
+</body>
+</html>

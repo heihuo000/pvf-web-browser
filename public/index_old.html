@@ -1,0 +1,4044 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>PVF Web Browser</title>
+    <link href="libs/prism-tomorrow.min.css" rel="stylesheet" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            height: 100vh;
+            height: 100dvh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            scroll-padding-bottom: env(safe-area-inset-bottom, 20px);
+        }
+
+        header {
+            background: #252526;
+            padding: 8px 10px;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            border-bottom: 1px solid #3c3c3c;
+            flex-wrap: wrap;
+        }
+
+        header h1 {
+            font-size: 16px;
+            margin-right: auto;
+            white-space: nowrap;
+        }
+
+        button, input, select {
+            padding: 6px 10px;
+            background: #3c3c3c;
+            border: 1px solid #555;
+            color: #d4d4d4;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        button:hover {
+            background: #4a4a4a;
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        input {
+            cursor: text;
+        }
+
+        /* 移动端优化 */
+        @media (max-width: 768px) {
+            header {
+                padding: 6px 8px;
+                gap: 6px;
+            }
+
+            header h1 {
+                font-size: 14px;
+            }
+
+            button, input, select {
+                padding: 5px 8px;
+                font-size: 13px;
+            }
+
+            /* 隐藏部分按钮，用菜单替代 */
+            .desktop-only {
+                display: none;
+            }
+
+            /* 为浏览器底部菜单栏预留空间 */
+            .file-viewer {
+                padding-bottom: max(env(safe-area-inset-bottom), 40px);
+            }
+        }
+
+        .container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .sidebar {
+            width: 280px;
+            background: #252526;
+            border-right: 1px solid #3c3c3c;
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.3s ease;
+            z-index: 100;
+        }
+
+        .sidebar.collapsed {
+            transform: translateX(-100%);
+            position: absolute;
+        }
+
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 90;
+        }
+
+        .sidebar-overlay.show {
+            display: block;
+        }
+
+        .sidebar-header {
+            padding: 10px;
+            background: #2d2d2d;
+            border-bottom: 1px solid #3c3c3c;
+        }
+
+        .sidebar-header input {
+            width: 100%;
+        }
+
+        .sidebar-tabs {
+            display: flex;
+            border-bottom: 1px solid #3c3c3c;
+            background: #2d2d2d;
+        }
+
+        .sidebar-tab {
+            flex: 1;
+            padding: 8px 12px;
+            text-align: center;
+            cursor: pointer;
+            font-size: 13px;
+            color: #858585;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .sidebar-tab:hover {
+            background: #3c3c3c;
+            color: #d4d4d4;
+        }
+
+        .sidebar-tab.active {
+            color: #d4d4d4;
+            border-bottom-color: #007acc;
+            background: #252526;
+        }
+
+        .file-tree {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
+            scroll-padding-bottom: env(safe-area-inset-bottom, 20px);
+        }
+
+        .search-results {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
+            scroll-padding-bottom: env(safe-area-inset-bottom, 20px);
+        }
+
+        .search-result-item {
+            padding: 8px 10px;
+            cursor: pointer;
+            border-bottom: 1px solid #2d2d2d;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .search-result-item:hover {
+            background: #2a2d2e;
+        }
+
+        .search-result-name {
+            font-size: 13px;
+            color: #d4d4d4;
+        }
+
+        .search-result-path {
+            font-size: 11px;
+            color: #858585;
+            font-family: 'Consolas', monospace;
+        }
+
+        .search-result-match {
+            font-size: 11px;
+            color: #4ec9b0;
+            font-family: 'Consolas', monospace;
+        }
+
+        .file-item {
+            padding: 8px 10px;
+            cursor: pointer;
+            border-radius: 3px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            user-select: none;
+        }
+
+        .file-item:hover {
+            background: #2a2d2e;
+        }
+
+        .file-item.selected {
+            background: #094771;
+            border-left: 3px solid #007acc;
+        }
+
+        .file-item .toggle-icon {
+            width: 16px;
+            text-align: center;
+            font-size: 10px;
+            color: #858585;
+            transition: transform 0.2s;
+        }
+
+        .file-item.folder-item .toggle-icon:hover {
+            color: #d4d4d4;
+        }
+
+        .file-item.back-item {
+            color: #4ec9b0;
+            font-weight: 500;
+        }
+
+        .file-item.back-item:hover {
+            background: #2a2d2e;
+        }
+
+        .folder-children {
+            border-left: 1px solid #3c3c3c;
+            margin-left: 8px;
+        }
+
+        .file-item.folder {
+            font-weight: 500;
+        }
+
+        .file-item .icon {
+            width: 16px;
+            height: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            flex-shrink: 0;
+        }
+
+        .file-item .name {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .file-item .size {
+            font-size: 11px;
+            color: #858585;
+            flex-shrink: 0;
+        }
+
+        .file-item .checkbox {
+            width: 18px;
+            height: 18px;
+            margin-right: 8px;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        .file-item .checkbox input {
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+        }
+
+        .batch-actions {
+            display: none;
+            padding: 8px 12px;
+            background: #2d2d2d;
+            border-bottom: 1px solid #3c3c3c;
+            gap: 8px;
+        }
+
+        .batch-actions.show {
+            display: flex;
+        }
+
+        .batch-actions .selected-count {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            font-size: 13px;
+            color: #d4d4d4;
+        }
+
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: visible;
+            min-width: 0;
+            position: relative;
+        }
+
+        .content-header {
+            padding: 8px 12px;
+            background: #2d2d2d;
+            border-bottom: 1px solid #3c3c3c;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .content-header .path {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-size: 13px;
+            color: #858585;
+        }
+
+        .content-header .actions {
+            display: flex;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        .toggle-sidebar-btn {
+            display: none;
+            background: #3c3c3c;
+            border: 1px solid #555;
+            color: #d4d4d4;
+            padding: 6px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                position: absolute;
+                left: 0;
+                top: 0;
+                bottom: 0;
+                width: 85%;
+                max-width: 300px;
+                box-shadow: 2px 0 10px rgba(0, 0, 0, 0.3);
+            }
+
+            .toggle-sidebar-btn {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+            .content-header {
+                padding: 6px 10px;
+            }
+
+            .content-header .path {
+                font-size: 12px;
+            }
+
+            .file-item {
+                padding: 10px 8px;
+                font-size: 15px;
+            }
+
+            .file-item .size {
+                font-size: 12px;
+            }
+        }
+
+        .menu-bar {
+            background: #2d2d2d;
+            border-bottom: 1px solid #3c3c3c;
+            padding: 4px 8px;
+            display: flex;
+            gap: 2px;
+            font-size: 13px;
+            transition: height 0.3s ease;
+            overflow: hidden;
+            position: relative;
+            z-index: 100;
+        }
+
+        .menu-bar.collapsed {
+            height: 0;
+            padding: 0;
+            border-bottom: none;
+        }
+
+        .menu-item {
+            padding: 4px 12px;
+            cursor: pointer;
+            border-radius: 2px;
+            position: relative;
+            z-index: 101;
+        }
+
+        .menu-item:hover {
+            background: #3c3c3c;
+        }
+
+        .menu-dropdown {
+            display: none;
+            position: fixed;
+            min-width: 250px;
+            max-height: 400px;
+            overflow-y: auto;
+            z-index: 150;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+            background: #252526;
+            border: 1px solid #3c3c3c;
+        }
+
+        .menu-dropdown.show {
+    display: block;
+        }
+
+        /* 移除自动hover显示，使用JavaScript控制 */
+
+        .menu-dropdown-item {
+            padding: 8px 16px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .menu-dropdown-item:hover {
+            background: #3c3c3c;
+        }
+
+        .menu-dropdown-item .shortcut {
+            color: #858585;
+            font-size: 11px;
+        }
+
+        .menu-dropdown-item .delete-btn {
+            padding: 2px 6px;
+            font-size: 10px;
+            background: #3c3c3c;
+            border: 1px solid #555;
+            color: #d4d4d4;
+            border-radius: 2px;
+            margin-left: 8px;
+        }
+
+        .menu-dropdown-item .delete-btn:hover {
+            background: #4a4a4a;
+        }
+
+        .menu-dropdown-divider {
+            border-top: 1px solid #3c3c3c;
+            margin: 4px 0;
+        }
+
+        .menu-dropdown-empty {
+            padding: 12px 16px;
+            color: #858585;
+            font-size: 12px;
+            text-align: center;
+        }
+
+        .toolbar {
+            background: #2d2d2d;
+            border-bottom: 1px solid #3c3c3c;
+            padding: 6px 12px;
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            flex-wrap: wrap;
+            transition: height 0.3s ease;
+            overflow: hidden;
+        }
+
+        .toolbar.collapsed {
+            height: 0;
+            padding: 0;
+            border-bottom: none;
+        }
+
+        .toolbar-group {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            padding-right: 12px;
+            border-right: 1px solid #3c3c3c;
+        }
+
+        .toolbar-group:last-child {
+            border-right: none;
+        }
+
+        .toolbar-separator {
+            width: 1px;
+            height: 20px;
+            background: #3c3c3c;
+            margin: 0 4px;
+        }
+
+        .toolbar label {
+            font-size: 12px;
+            color: #858585;
+            margin-right: 4px;
+        }
+
+        .toggle-controls {
+            background: #2d2d2d;
+            border-bottom: 1px solid #3c3c3c;
+            padding: 4px 8px;
+            display: flex;
+            gap: 4px;
+            justify-content: flex-end;
+        }
+
+        .toggle-controls .toggle-toolbar-btn {
+            margin-left: 0;
+            font-size: 12px;
+            padding: 3px 8px;
+        }
+
+        .toggle-toolbar-btn {
+            background: #3c3c3c;
+            border: 1px solid #555;
+            color: #d4d4d4;
+            padding: 4px 8px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-left: auto;
+        }
+
+        .toggle-toolbar-btn:hover {
+            background: #4a4a4a;
+        }
+
+        @media (max-width: 768px) {
+            .menu-bar {
+                font-size: 12px;
+            }
+
+            .menu-item {
+                padding: 4px 8px;
+            }
+
+            .toolbar {
+                padding: 4px 8px;
+            }
+
+            .toolbar-group {
+                padding-right: 6px;
+            }
+
+            .toolbar label {
+                display: none;
+            }
+        }
+
+        /* 标签页栏 */
+        .tabs-bar {
+            background: #252526;
+            border-bottom: 1px solid #3c3c3c;
+            min-height: 35px;
+            display: flex;
+            align-items: center;
+            overflow-x: auto;
+            overflow-y: hidden;
+        }
+
+        .tabs-container {
+            display: flex;
+            gap: 2px;
+            padding: 0 8px;
+        }
+
+        .tab {
+            display: flex;
+            align-items: center;
+            padding: 6px 12px;
+            background: #2d2d2d;
+            border: 1px solid #3c3c3c;
+            border-bottom: none;
+            border-radius: 4px 4px 0 0;
+            cursor: pointer;
+            min-width: 100px;
+            max-width: 200px;
+            user-select: none;
+            transition: background 0.2s;
+        }
+
+        .tab:hover {
+            background: #3c3c3c;
+        }
+
+        .tab.active {
+            background: #1e1e1e;
+            border-bottom: 1px solid #1e1e1e;
+        }
+
+        .tab-title {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-size: 13px;
+        }
+
+        .tab-close {
+            margin-left: 8px;
+            width: 16px;
+            height: 16px;
+            border-radius: 3px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            color: #858585;
+        }
+
+        .tab-close:hover {
+            background: #505050;
+            color: #d4d4d4;
+        }
+
+        /* 可点击的路径链接 */
+        .path-link {
+            color: #4ec9b0;
+            text-decoration: underline;
+            cursor: pointer;
+            padding: 0 2px;
+            border-radius: 2px;
+        }
+
+        .path-link:hover {
+            background: rgba(78, 201, 176, 0.1);
+        }
+
+        .file-viewer {
+            flex: 1;
+            overflow: auto;
+            padding: 0;
+            position: relative;
+        }
+
+        /* 移动端底部安全区域适配 */
+        @media (max-width: 768px) {
+            .file-viewer {
+                padding-bottom: env(safe-area-inset-bottom, 20px);
+            }
+        }
+
+        /* 虚拟滚动容器 */
+        .virtual-scroll-container {
+            position: relative;
+            height: 100%;
+            overflow: auto;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 12px;
+            line-height: 1.6;
+            scroll-padding-bottom: env(safe-area-inset-bottom, 20px);
+            overflow-x: auto;
+            overflow-y: scroll;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .virtual-scroll-content {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            min-width: 100%;
+        }
+
+        .virtual-scroll-viewport {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            min-width: 100%;
+        }
+
+        /* 行号 */
+        .line-numbers {
+            background: #1e1e1e;
+            border-right: 0.5px solid #3c3c3c;
+            text-align: right;
+            padding-right: 2px;
+            color: #858585;
+            user-select: none;
+            flex-shrink: 0;
+        }
+
+        .line-number {
+            height: 19.2px; /* line-height 1.6 * 12px */
+            line-height: 19.2px;
+            font-size: 12px;
+            min-width: 20px;
+        }
+
+        /* 代码内容 */
+        .code-content {
+            padding-left: 2px;
+            white-space: pre;
+            flex: 1;
+            overflow: auto;
+        }
+
+        /* 行号和代码的包装容器 */
+        .code-with-lines {
+            display: flex;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 12px;
+            line-height: 1.6;
+            overflow-x: auto;
+        }
+
+        .code-line {
+            min-height: 19.2px;
+            line-height: 19.2px;
+            font-size: 12px;
+            white-space: nowrap;
+        }
+
+        .file-viewer pre {
+            background: #1e1e1e;
+            padding: 12px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 12px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            margin: 0;
+            /* 显示空白字符 */
+            white-space: pre-wrap;
+        }
+
+        /* 显示空白字符的样式 */
+        .show-whitespace {
+            white-space: pre-wrap !important;
+        }
+
+        .show-whitespace code {
+            white-space: pre-wrap !important;
+        }
+
+        /* 空白字符显示样式 */
+        .whitespace-tab {
+            color: #808080;
+            opacity: 0.5;
+            display: inline-block;
+            margin-right: 2px;
+        }
+
+        .whitespace-space {
+            color: #808080;
+            opacity: 0.5;
+            font-size: 0.8em;
+        }
+
+        /* 换行符显示 */
+        .show-whitespace .token.whitespace-newline {
+            color: #808080;
+            opacity: 0.3;
+        }
+
+        /* PVF 脚本语法高亮（基于 pvfut 源码） */
+        
+        /* 标签/节 [name], [code] 等 */
+        .token.section {
+            color: #569cd6;
+            font-weight: bold;
+        }
+        
+        .token.section .bracket {
+            color: #ffd700;
+        }
+        
+        .token.section .content .keyword {
+            color: #c586c0;
+            font-weight: bold;
+        }
+        
+        /* 字符串 `...` */
+        .token.string {
+            color: #ce9178;
+        }
+        
+        /* 字符串链接 <id::name`文字`> */
+        .token.string-link {
+            color: #4ec9b0;
+            font-style: italic;
+        }
+        
+        .token.string-link .punctuation {
+            color: #569cd6;
+        }
+        
+        .token.string-link .id {
+            color: #b5cea8;
+        }
+        
+        .token.string-link .separator {
+            color: #d4d4d4;
+        }
+        
+        /* 注释 */
+        .token.comment {
+            color: #6a9955;
+            font-style: italic;
+        }
+        
+        /* 数字 */
+        .token.number {
+            color: #b5cea8;
+        }
+        
+        /* 标识符 */
+        .token.identifier {
+            color: #9cdcfe;
+        }
+        
+        /* 运算符 */
+        .token.operator {
+            color: #d4d4d4;
+        }
+        
+        /* 标点符号 */
+        .token.punctuation {
+            color: #d4d4d4;
+        }
+
+        .file-viewer .empty {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #858585;
+            font-size: 14px;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 20px;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: #252526;
+            padding: 20px;
+            border-radius: 8px;
+            min-width: 300px;
+            max-width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            margin-bottom: 15px;
+            font-size: 18px;
+            font-weight: 500;
+        }
+
+        .modal-body {
+            margin-bottom: 15px;
+        }
+
+        .modal-body input {
+            width: 100%;
+            margin-bottom: 10px;
+        }
+
+        .modal-body textarea {
+            width: 100%;
+            min-height: 300px;
+            max-height: 70vh;
+            background: #1e1e1e;
+            border: 1px solid #3c3c3c;
+            color: #d4d4d4;
+            padding: 10px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            resize: vertical;
+        }
+
+        .modal-body textarea:focus {
+            outline: none;
+            border-color: #007acc;
+        }
+
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        @media (max-width: 768px) {
+            .modal-content {
+                padding: 15px;
+                min-width: auto;
+                width: 100%;
+            }
+
+            .modal-header {
+                font-size: 16px;
+                margin-bottom: 12px;
+            }
+
+            .modal-footer {
+                flex-direction: column;
+            }
+
+            .modal-footer button {
+                width: 100%;
+            }
+        }
+
+        .status-bar {
+            padding: 4px 12px;
+            background: #007acc;
+            color: white;
+            font-size: 12px;
+            flex-shrink: 0;
+        }
+
+        .loading {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px 30px;
+            border-radius: 8px;
+            z-index: 1001;
+            font-size: 14px;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        /* 返回按钮 */
+        .back-btn {
+            display: none;
+            background: #3c3c3c;
+            border: 1px solid #555;
+            color: #d4d4d4;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        @media (max-width: 768px) {
+            .back-btn {
+                display: flex;
+                align-items: center;
+                gap: 4px;
+            }
+        }
+
+        /* 高级搜索对话框样式 */
+        .search-modal-content {
+            max-width: 550px;
+            background: linear-gradient(135deg, #2a2a2e 0%, #252526 100%);
+            border: 1px solid #3c3c3c;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        }
+
+        .search-field-group {
+            margin-bottom: 20px;
+        }
+
+        .search-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            color: #d4d4d4;
+        }
+
+        .search-icon {
+            font-size: 16px;
+        }
+
+        .search-select,
+        .search-input {
+            width: 100%;
+            padding: 10px 12px;
+            background: #1e1e1e;
+            border: 1px solid #3c3c3c;
+            border-radius: 6px;
+            color: #d4d4d4;
+            font-size: 14px;
+            transition: all 0.2s ease;
+        }
+
+        .search-select:focus,
+        .search-input:focus {
+            outline: none;
+            border-color: #007acc;
+            box-shadow: 0 0 0 3px rgba(0, 122, 204, 0.1);
+        }
+
+        .search-input::placeholder {
+            color: #858585;
+        }
+
+        .search-options-group {
+            margin-top: 24px;
+            padding: 16px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            border: 1px solid #3c3c3c;
+        }
+
+        .search-section-label {
+            display: block;
+            margin-bottom: 12px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #858585;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .search-checkbox-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 12px;
+        }
+
+        .search-checkbox-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            background: #2d2d32;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            user-select: none;
+        }
+
+        .search-checkbox-label:hover {
+            background: #38383d;
+            transform: translateY(-1px);
+        }
+
+        .search-checkbox-label input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            accent-color: #007acc;
+        }
+
+        .checkbox-text {
+            font-size: 13px;
+            color: #d4d4d4;
+        }
+
+        .search-footer {
+            padding-top: 20px;
+            border-top: 1px solid #3c3c3c;
+        }
+
+        .search-btn {
+            padding: 10px 24px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: none;
+        }
+
+        .cancel-btn {
+            background: #3c3c3c;
+            color: #d4d4d4;
+        }
+
+        .cancel-btn:hover {
+            background: #4a4a4a;
+        }
+
+        .search-confirm-btn {
+            background: linear-gradient(135deg, #007acc 0%, #005a9e 100%);
+            color: white;
+            box-shadow: 0 2px 8px rgba(0, 122, 204, 0.3);
+        }
+
+        .search-confirm-btn:hover {
+            background: linear-gradient(135deg, #0086e6 0%, #0066b3 100%);
+            box-shadow: 0 4px 12px rgba(0, 122, 204, 0.4);
+            transform: translateY(-1px);
+        }
+
+        .search-confirm-btn:active {
+            transform: translateY(0);
+        }
+
+        /* 名称预览样式 */
+        .name-preview {
+            color: #6a6a6a;
+            font-size: 11px;
+            font-style: italic;
+            opacity: 0.7;
+            user-select: none;
+            margin-left: 8px;
+        }
+
+        /* 移动端优化 */
+        @media (max-width: 768px) {
+            .search-modal-content {
+                max-width: 95%;
+                border-radius: 12px;
+            }
+
+            .search-checkbox-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .search-footer {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .search-btn {
+                width: 100%;
+            }
+        }
+
+        /* 面包屑导航 */
+        .breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            overflow-x: auto;
+            white-space: nowrap;
+            font-size: 12px;
+            color: #858585;
+            flex: 1;
+        }
+
+        .breadcrumb-item {
+            cursor: pointer;
+            padding: 2px 4px;
+            border-radius: 2px;
+        }
+
+        .breadcrumb-item:hover {
+            background: #3c3c3c;
+        }
+
+        .breadcrumb-separator {
+            color: #555;
+        }
+
+        /* 合并的可滚动工具栏 */
+        .toolbar-scrollable {
+            background: #2d2d2d;
+            border-bottom: 1px solid #3c3c3c;
+            padding: 6px 12px;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            overflow-x: auto;
+            overflow-y: hidden;
+            white-space: nowrap;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: thin;
+            scrollbar-color: #555 #2d2d2d;
+        }
+
+        .toolbar-scrollable::-webkit-scrollbar {
+            height: 6px;
+        }
+
+        .toolbar-scrollable::-webkit-scrollbar-track {
+            background: #2d2d2d;
+        }
+
+        .toolbar-scrollable::-webkit-scrollbar-thumb {
+            background-color: #555;
+            border-radius: 3px;
+        }
+
+        .menu-item {
+            flex-shrink: 0;
+        }
+
+        .toolbar-group {
+            flex-shrink: 0;
+        }
+
+        @media (max-width: 768px) {
+            .toolbar-scrollable {
+                padding: 4px 8px;
+                gap: 4px;
+            }
+
+            .breadcrumb {
+                font-size: 11px;
+                gap: 2px;
+            }
+
+            .content-header {
+                padding: 4px 8px;
+                gap: 4px;
+            }
+
+            .content-header .actions {
+                gap: 4px;
+            }
+
+            .content-header .actions button {
+                padding: 4px 6px;
+                font-size: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <button class="toggle-sidebar-btn" id="toggleSidebar">☰</button>
+        <h1>PVF Web Browser</h1>
+        <button id="openBtn" class="desktop-only">打开</button>
+        <button id="saveBtn" disabled class="desktop-only">保存</button>
+    </header>
+
+    <div class="container">
+        <div class="sidebar-overlay" id="sidebarOverlay"></div>
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <input type="text" id="searchInput" placeholder="搜索...">
+            </div>
+            <div class="sidebar-tabs">
+                <div class="sidebar-tab active" data-tab="tree">目录</div>
+                <div class="sidebar-tab" data-tab="search">搜索结果</div>
+            </div>
+            <div class="batch-actions" id="batchActions">
+                <div class="selected-count">已选择 <span id="selectedCount">0</span> 个文件</div>
+                <button id="batchExtractBtn">批量提取</button>
+                <button id="clearSelectionBtn">清除选择</button>
+            </div>
+            <div class="file-tree" id="fileTree">
+                <div style="padding: 20px; text-align: center; color: #858585;">
+                    加载中...
+                </div>
+            </div>
+            <div class="search-results" id="searchResults" style="display: none;">
+                <div style="padding: 20px; text-align: center; color: #858585;">
+                    使用高级搜索功能查找文件
+                </div>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <!-- 合并的工具栏（可横向滚动） -->
+            <div class="toolbar-scrollable" id="toolbarScrollable">
+                <!-- 菜单项 -->
+                <div class="menu-item" id="fileMenu">
+                    文件 ▾
+                    <div class="menu-dropdown" id="pvfFileMenu">
+                        <div class="menu-dropdown-empty">加载中...</div>
+                    </div>
+                </div>
+                <div class="menu-item">
+                    书签 ▾
+                    <div class="menu-dropdown" id="bookmarkMenu">
+                        <div class="menu-dropdown-empty">暂无书签</div>
+                    </div>
+                </div>
+
+                <!-- 功能按钮 -->
+                <div class="toolbar-group">
+                    <button id="addBookmarkBtn" title="添加书签">⭐</button>
+                    <button id="advancedSearchBtn" title="高级搜索">🔍</button>
+                    <button id="editBtn" disabled>编辑</button>
+                    <button id="extractBtn" disabled>提取</button>
+                </div>
+
+                <div class="toolbar-group">
+                    <button id="batchModeBtn">批量</button>
+                    <button id="toggleWhitespaceBtn" title="显示空白字符" style="font-size: 12px;">¶</button>
+                </div>
+
+                <!-- 编码选择（放在最后） -->
+                <div class="toolbar-group" style="border-right: none;">
+                    <label>编码:</label>
+                    <select id="encodingSelect">
+                        <option value="AUTO">自动</option>
+                        <option value="KR">韩文</option>
+                        <option value="TW" selected>繁体</option>
+                        <option value="CN">简体</option>
+                        <option value="JP">日文</option>
+                        <option value="UTF8">UTF8</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- 文件路径显示 -->
+            <div class="content-header">
+                <div class="breadcrumb" id="breadcrumb" style="font-family: 'Consolas', monospace; font-size: 12px;">未选择文件</div>
+                <div class="actions">
+                    <button id="copyPathBtn" title="复制文件路径" disabled>📋</button>
+                    <button id="locateDirBtn" title="定位到目录" disabled>📁</button>
+                </div>
+            </div>
+
+            <!-- 标签页栏 -->
+            <div class="tabs-bar" id="tabsBar">
+                <div class="tabs-container" id="tabsContainer">
+                    <!-- 标签页会在这里动态生成 -->
+                </div>
+            </div>
+
+            <div class="file-viewer" id="fileViewer">
+                <div class="empty">选择一个文件查看内容</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="status-bar" id="statusBar">
+        就绪
+    </div>
+
+    <!-- 打开文件对话框 -->
+    <div class="modal" id="openModal">
+        <div class="modal-content">
+            <div class="modal-header">打开 PVF 文件</div>
+            <div class="modal-body">
+                <input type="text" id="filePathInput" placeholder="输入 PVF 文件路径">
+                <div style="font-size: 12px; color: #858585; margin-top: 5px;">
+                    提示: 输入服务器上的绝对路径
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="cancelOpenBtn">取消</button>
+                <button id="confirmOpenBtn">打开</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 高级搜索对话框 -->
+    <div class="modal" id="searchModal">
+        <div class="modal-content search-modal-content">
+            <div class="modal-header">
+                🔍 高级搜索
+            </div>
+            <div class="modal-body">
+                <div class="search-field-group">
+                    <label for="searchTypeSelect" class="search-label">
+                        <span class="search-icon">📁</span>
+                        搜索类型
+                    </label>
+                    <select id="searchTypeSelect" class="search-select">
+                        <option value="filename">文件名</option>
+                        <option value="name">脚本名称</option>
+                        <option value="number">数字</option>
+                        <option value="string">字符串</option>
+                        <option value="content">脚本内容</option>
+                    </select>
+                </div>
+
+                <div class="search-field-group">
+                    <label for="searchKeywordInput" class="search-label">
+                        <span class="search-icon">🔤</span>
+                        搜索关键词
+                    </label>
+                    <input type="text" id="searchKeywordInput" class="search-input" placeholder="输入关键词...">
+                </div>
+
+                <div class="search-options-group">
+                    <label class="search-section-label">搜索选项</label>
+                    <div class="search-checkbox-grid">
+                        <label class="search-checkbox-label">
+                            <input type="checkbox" id="searchStartMatch">
+                            <span class="checkbox-text">开头匹配</span>
+                        </label>
+                        <label class="search-checkbox-label">
+                            <input type="checkbox" id="searchUseRegex">
+                            <span class="checkbox-text">正则表达式</span>
+                        </label>
+                        <label class="search-checkbox-label">
+                            <input type="checkbox" id="searchCaseSensitive">
+                            <span class="checkbox-text">区分大小写</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer search-footer">
+                <button id="cancelSearchBtn" class="search-btn cancel-btn">取消</button>
+                <button id="confirmSearchBtn" class="search-btn search-confirm-btn">
+                    🔍 开始搜索
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 提取文件对话框 -->
+    <div id="extractModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">下载文件</div>
+            <div class="modal-body">
+                <p>当前文件：<span id="extractFileName"></span></p>
+                <p style="color: #858585; font-size: 13px;">点击确认将直接下载文件到您的设备</p>
+            </div>
+            <div class="modal-footer">
+                <button id="cancelExtractBtn">取消</button>
+                <button id="confirmExtractBtn">下载</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 保存文件对话框 -->
+    <div class="modal" id="saveModal">
+        <div class="modal-content">
+            <div class="modal-header">保存 PVF 文件</div>
+            <div class="modal-body">
+                <input type="text" id="savePathInput" placeholder="输入保存路径">
+            </div>
+            <div class="modal-footer">
+                <button id="cancelSaveBtn">取消</button>
+                <button id="confirmSaveBtn">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 编辑文件对话框 -->
+    <div class="modal" id="editModal">
+        <div class="modal-content" style="max-width: 95%;">
+            <div class="modal-header">编辑文件: <span id="editFileName"></span></div>
+            <div class="modal-body">
+                <textarea id="editFileContent" spellcheck="false"></textarea>
+            </div>
+            <div class="modal-footer">
+                <button id="cancelEditBtn">取消</button>
+                <button id="confirmEditBtn">保存到 PVF</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 批量提取对话框 -->
+    <div class="modal" id="batchExtractModal">
+        <div class="modal-content">
+            <div class="modal-header">批量提取文件</div>
+            <div class="modal-body">
+                <p>将提取 <span id="batchExtractCount">0</span> 个文件</p>
+                <div style="margin-bottom: 15px;">
+                    <label>目标路径：</label>
+                    <input type="text" id="batchDestPathInput" style="width: 100%; margin-top: 5px;" placeholder="输入目标路径">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="cancelBatchExtractBtn">取消</button>
+                <button id="confirmBatchExtractBtn">提取</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 编辑书签对话框 -->
+    <div class="modal" id="editBookmarkModal">
+        <div class="modal-content">
+            <div class="modal-header">编辑书签别名</div>
+            <div class="modal-body">
+                <p>文件路径：<span id="editBookmarkPath"></span></p>
+                <div style="margin-bottom: 15px;">
+                    <label>别名：</label>
+                    <input type="text" id="editBookmarkName" style="width: 100%; margin-top: 5px;">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="cancelEditBookmarkBtn">取消</button>
+                <button id="confirmEditBookmarkBtn">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 加载提示 -->
+    <div class="loading" id="loading">处理中...</div>
+
+<!-- 语法高亮 - 本地加载 -->
+    <script>
+        // 本地加载Prism.js
+        function loadPrism() {
+            console.log('Loading Prism.js from local...');
+            const script = document.createElement('script');
+            script.src = 'libs/prism.min.js';
+            script.onload = function() {
+                console.log('Prism.js loaded successfully from local');
+                // 注册PVF语言
+                if (typeof Prism !== 'undefined') {
+                    Prism.languages.pvf = {
+                        'section': { pattern: /\[[^\]]*\]/, greedy: true, inside: {
+                            'punctuation': /\[|\]/,
+                            'keyword': /[^\]\[\s]+/
+                        }},
+                        'string': { pattern: /`(?:\\`|[^`])*`/, greedy: true },
+                        'comment': { pattern: /#.*/, greedy: true },
+                        'number': { pattern: /\b\d+\b/, greedy: true },
+                        'operator': /[=+\-*/%<>!&|^~?:,]/,
+                        'identifier': { pattern: /\b[a-zA-Z_][a-zA-Z0-9_]*\b/, greedy: true }
+                    };
+                    
+                    // 注册 Squirrel 语言（.nut 文件）
+                    Prism.languages.squirrel = {
+                        'comment': [
+                            { pattern: /\/\/.*/, greedy: true },
+                            { pattern: /\/\*[\s\S]*?\*\//, greedy: true }
+                        ],
+                        'string': [
+                            { pattern: /'(?:\\'|[^'])*'/, greedy: true },
+                            { pattern: /"(?:\\"|[^"])*"/, greedy: true },
+                            { pattern: /@'(?:\\'|[^'])*'/, greedy: true },
+                            { pattern: /@"(?:\\"|[^"])*"/, greedy: true }
+                        ],
+                        'class-name': {
+                            pattern: /(\bclass\s+)[a-zA-Z_][a-zA-Z0-9_]*/,
+                            lookbehind: true
+                        },
+                        'keyword': /\b(?:local|function|return|if|else|for|while|do|break|continue|switch|case|default|class|extends|constructor|this|static|null|true|false|typeof|instanceof|delete|in|clone|resume|yield|throw|try|catch|finally)\b/,
+                        'boolean': /\b(?:true|false)\b/,
+                        'null': /\bnull\b/,
+                        'number': [
+                            { pattern: /\b0x[0-9a-fA-F]+\b/, greedy: true },
+                            { pattern: /\b\d+(?:\.\d+)?(?:[eE][+-]?\d+)?\b/, greedy: true }
+                        ],
+                        'function': /\b[a-zA-Z_][a-zA-Z0-9_]*\s*\(/,
+                        'operator': /->|\+\+|--|[-+*/%&|^~!=<>]=?|&&|\|\|[?:]/,
+                        'punctuation': /[{}[\](),.;:]/
+                    };
+                    
+                    console.log('PVF and Squirrel languages registered');
+                    
+                    // 如果当前有文件在显示，重新应用高亮
+                    const preElement = document.querySelector('#fileViewer pre');
+                    if (preElement) {
+                        console.log('Re-applying syntax highlighting to current file');
+                        Prism.highlightElement(preElement);
+                    }
+                } else {
+                    console.error('Prism is not defined after loading');
+                }
+            };
+            script.onerror = function() {
+                console.error('Failed to load Prism.js from local file');
+            };
+            document.head.appendChild(script);
+        }
+        // 页面加载完成后再加载Prism
+        window.addEventListener('load', loadPrism);
+    </script>
+    <script>
+        console.log('Main script starting...');
+        
+        // 简单测试
+        try {
+            console.log('DOM ready:', document.readyState);
+            console.log('fileTree exists:', !!document.getElementById('fileTree'));
+        } catch (e) {
+            console.error('Init test failed:', e);
+        }
+        
+        const toggleSidebarBtn = document.getElementById('toggleSidebar');
+        const sidebar = document.getElementById('sidebar');
+        const sidebarOverlay = document.getElementById('sidebarOverlay');
+        const openBtn = document.getElementById('openBtn');
+        const saveBtn = document.getElementById('saveBtn');
+        const editBtn = document.getElementById('editBtn');
+        const extractBtn = document.getElementById('extractBtn');
+        const batchModeBtn = document.getElementById('batchModeBtn');
+        const addBookmarkBtn = document.getElementById('addBookmarkBtn');
+        const advancedSearchBtn = document.getElementById('advancedSearchBtn');
+        const encodingSelect = document.getElementById('encodingSelect');
+        const searchInput = document.getElementById('searchInput');
+        const fileTree = document.getElementById('fileTree');
+        const fileViewer = document.getElementById('fileViewer');
+        const breadcrumb = document.getElementById('breadcrumb');
+        const statusBar = document.getElementById('statusBar');
+        const loading = document.getElementById('loading');
+
+        const openModal = document.getElementById('openModal');
+        const extractModal = document.getElementById('extractModal');
+        const saveModal = document.getElementById('saveModal');
+        const editModal = document.getElementById('editModal');
+        const batchExtractModal = document.getElementById('batchExtractModal');
+        const searchModal = document.getElementById('searchModal');
+        const batchActions = document.getElementById('batchActions');
+        const copyPathBtn = document.getElementById('copyPathBtn');
+        const locateDirBtn = document.getElementById('locateDirBtn');
+
+        let currentFile = null;
+        let currentFilePath = null;
+        let currentPath = '';
+        let pathHistory = [];
+        let batchMode = false;
+        let selectedFiles = new Set();
+        let bookmarks = [];
+
+        // 名称预览缓存，避免重复请求
+        const namePreviewCache = new Map();
+        const namePreviewPromises = new Map(); // 用于缓存正在进行的请求
+
+        // 标签页管理
+        let tabs = [];
+        let activeTabId = null;
+
+        // 文件内容缓存
+        let fileContentCache = new Map(); // key -> { content, encoding, lines, timestamp }
+
+        // 创建新标签页
+        function createTab(key) {
+            const tabId = Date.now().toString();
+            const fileName = key.split('/').pop();
+
+            // 检查是否已存在
+            const existingTab = tabs.find(t => t.key === key);
+            if (existingTab) {
+                switchToTab(existingTab.id);
+                return existingTab.id;
+            }
+
+            const tab = {
+                id: tabId,
+                key: key,
+                name: fileName,
+                isActive: true,
+                isLoaded: false
+            };
+
+            // 将其他标签设为非活动
+            tabs.forEach(t => t.isActive = false);
+            tabs.push(tab);
+            activeTabId = tabId;
+
+            renderTabs();
+            return tabId;
+        }
+
+        // 切换标签页
+        function switchToTab(tabId) {
+            const tab = tabs.find(t => t.id === tabId);
+            if (!tab) return;
+
+            tabs.forEach(t => t.isActive = t.id === tabId);
+            activeTabId = tabId;
+
+            currentFile = tab.key;
+            updateBreadcrumb(tab.key);
+
+            // 检查缓存
+            const cached = fileContentCache.get(tab.key);
+            if (cached) {
+                // 使用缓存渲染
+                renderFileFromCache(tab.key, cached);
+                tab.isLoaded = true;
+            } else {
+                // 加载文件内容
+                loadFileContent(tab.key);
+            }
+
+            renderTabs();
+        }
+
+        // 从缓存渲染文件内容
+        function renderFileFromCache(key, cached) {
+            const ext = key.split('.').pop().toLowerCase();
+            const languageClass = getLanguageClass(ext);
+            const lines = cached.lines;
+            const lineCount = lines.length;
+
+            // 更新按钮状态
+            extractBtn.disabled = false;
+            const copyPathBtn = document.getElementById('copyPathBtn');
+            const locateDirBtn = document.getElementById('locateDirBtn');
+            if (copyPathBtn) copyPathBtn.disabled = false;
+            if (locateDirBtn) locateDirBtn.disabled = false;
+
+            const editableExtensions = ['txt', 'nut', 'str', 'lst', 'equ', 'stk', 'ai', 'aic', 'key', 'als', 'act'];
+            editBtn.disabled = !editableExtensions.includes(ext);
+
+            // 根据文件大小决定是否使用虚拟滚动
+            if (lineCount > 500) {
+                // 使用虚拟滚动
+                initVirtualScroll(lines, languageClass, key, showWhitespaceMode);
+            } else {
+                // 小文件直接渲染
+                let linesHtml = `<div class="code-with-lines ${languageClass}">`;
+                let lineNumbersHtml = '<div class="line-numbers">';
+                let codeContentHtml = '<div class="code-content">';
+
+                lines.forEach((line, index) => {
+                    lineNumbersHtml += `<div class="line-number">${index + 1}</div>`;
+                    const displayLine = escapeHtml(line);
+                    codeContentHtml += `<div class="code-line">${displayLine}</div>`;
+                });
+
+                lineNumbersHtml += '</div>';
+                codeContentHtml += '</div>';
+                linesHtml += lineNumbersHtml + codeContentHtml + '</div>';
+
+                fileViewer.innerHTML = linesHtml;
+
+                // 应用语法高亮
+                applySyntaxHighlighting();
+
+                // 在语法高亮后应用空白字符显示
+                if (showWhitespaceMode) {
+                    applyWhitespaceDisplay(fileViewer);
+                }
+
+                // 添加路径链接
+                addPathLinks(fileViewer);
+            }
+
+            updateStatus(`${key.split('/').pop()} (${lineCount} 行)`);
+        }
+
+        // 关闭标签页
+        function closeTab(tabId, event) {
+            event.stopPropagation();
+
+            const tabIndex = tabs.findIndex(t => t.id === tabId);
+            if (tabIndex === -1) return;
+
+            const tab = tabs[tabIndex];
+            const wasActive = tab.isActive;
+
+            // 检查是否还有其他标签使用这个文件
+            const otherTabsWithSameFile = tabs.filter(t => t.key === tab.key && t.id !== tabId);
+
+            // 如果没有其他标签使用这个文件，清除缓存
+            if (otherTabsWithSameFile.length === 0) {
+                fileContentCache.delete(tab.key);
+            }
+
+            tabs.splice(tabIndex, 1);
+
+            if (wasActive && tabs.length > 0) {
+                // 如果关闭的是当前活动标签，切换到相邻标签
+                const newActiveIndex = Math.min(tabIndex, tabs.length - 1);
+                switchToTab(tabs[newActiveIndex].id);
+            } else if (tabs.length === 0) {
+                // 如果没有标签了，清空文件查看器
+                currentFile = null;
+                fileViewer.innerHTML = '<div class="empty">选择一个文件查看内容</div>';
+                updateBreadcrumb('');
+                activeTabId = null;
+            }
+
+            // 清理旧缓存（保留最近10个文件）
+            if (fileContentCache.size > 10) {
+                const entries = Array.from(fileContentCache.entries());
+                entries.sort((a, b) => a[1].timestamp - b[1].timestamp);
+                const toDelete = entries.slice(0, entries.length - 10);
+                toDelete.forEach(([key]) => fileContentCache.delete(key));
+            }
+
+            renderTabs();
+        }
+
+        // 渲染标签页
+        function renderTabs() {
+            const container = document.getElementById('tabsContainer');
+            if (!container) return;
+
+            if (tabs.length === 0) {
+                container.innerHTML = '';
+                return;
+            }
+
+            container.innerHTML = tabs.map(tab => `
+                <div class="tab ${tab.isActive ? 'active' : ''}" data-tab-id="${tab.id}" onclick="switchToTab('${tab.id}')">
+                    <span class="tab-title">${tab.name}</span>
+                    <span class="tab-close" onclick="closeTab('${tab.id}', event)">×</span>
+                </div>
+            `).join('');
+        }
+
+        // 定位下拉菜单
+        function positionDropdown(menuItem, dropdown) {
+            const rect = menuItem.getBoundingClientRect();
+            dropdown.style.top = (rect.bottom) + 'px';
+            dropdown.style.left = rect.left + 'px';
+            dropdown.style.background = '#252526';
+            dropdown.style.border = '1px solid #3c3c3c';
+        }
+
+        // 渲染书签菜单
+        function renderBookmarks() {
+            const container = document.getElementById('bookmarkMenu');
+            const menuItem = document.querySelectorAll('.menu-item')[1]; // 书签菜单是第二个
+            console.log('renderBookmarks called, bookmarks:', bookmarks);
+            
+            if (!container || !menuItem) {
+                console.error('bookmarkMenu or menu-item element not found');
+                return;
+            }
+
+            // 定位下拉菜单
+            positionDropdown(menuItem, container);
+            
+            if (bookmarks.length === 0) {
+                container.innerHTML = '<div class="menu-dropdown-empty">暂无书签</div>';
+            } else {
+                let html = '';
+                bookmarks.forEach(bookmark => {
+                    html += `
+                        <div class="menu-dropdown-item" data-key="${bookmark.key}">
+                            <div style="flex: 1;">
+                                <div style="font-weight: 500;">${bookmark.name}</div>
+                                <div style="font-size: 11px; color: #858585;">${bookmark.key}</div>
+                            </div>
+                            <div style="display: flex; gap: 4px;">
+                                <button class="delete-btn" onclick="event.stopPropagation(); editBookmark('${bookmark.key}')">✎</button>
+                                <button class="delete-btn" onclick="event.stopPropagation(); removeBookmark('${bookmark.key}')">✕</button>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                container.innerHTML = html;
+                console.log('Bookmark menu updated with', bookmarks.length, 'items');
+
+                // 添加点击事件
+                container.querySelectorAll('.menu-dropdown-item').forEach(item => {
+                    item.addEventListener('click', (e) => {
+                        if (e.target.tagName !== 'BUTTON') {
+                            const key = item.dataset.key;
+                            loadFileContent(key);
+                        }
+                    });
+                });
+            }
+        }
+
+        // 从服务器加载 PVF 文件列表
+        async function loadPvfFiles() {
+            console.log('loadPvfFiles called');
+            try {
+                const response = await fetch('/api/pvf-files');
+                console.log('PVF files API response status:', response.status);
+                const data = await response.json();
+                console.log('PVF files data:', data);
+                renderPvfFileMenu(data.files || []);
+            } catch (error) {
+                console.error('加载 PVF 文件列表失败:', error);
+                const container = document.getElementById('pvfFileMenu');
+                if (container) {
+                    container.innerHTML = '<div class="menu-dropdown-empty">加载失败</div>';
+                }
+            }
+        }
+
+        // 渲染 PVF 文件菜单
+        function renderPvfFileMenu(files) {
+            console.log('renderPvfFileMenu called with files:', files);
+            const container = document.getElementById('pvfFileMenu');
+            const menuItem = document.getElementById('fileMenu');
+
+            if (!container) {
+                console.error('pvfFileMenu element not found');
+                return;
+            }
+            if (!menuItem) {
+                console.error('fileMenu element not found');
+                return;
+            }
+
+            positionDropdown(menuItem, container);
+
+            if (!files || files.length === 0) {
+                container.innerHTML = '<div class="menu-dropdown-empty">暂无 PVF 文件</div>';
+                return;
+            }
+
+            // 克隆节点以移除旧的事件监听器
+            const newContainer = container.cloneNode(false);
+            container.parentNode.replaceChild(newContainer, container);
+            const newContainerId = document.getElementById('pvfFileMenu');
+
+            newContainerId.innerHTML = files.map(file => {
+                // 简化逻辑：不依赖currentModel判断当前文件
+                return `
+                    <div class="menu-dropdown-item" data-file-path="${encodeURIComponent(file.path)}">
+                        ${file.name}
+                    </div>
+                `;
+            }).join('');
+
+            // 添加点击事件 - 使用事件委托
+            newContainerId.addEventListener('click', (e) => {
+                const item = e.target.closest('.menu-dropdown-item');
+                if (item) {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    const filePath = decodeURIComponent(item.dataset.filePath);
+                    console.log('PVF file clicked:', filePath);
+                    openPvfFileFromMenu(filePath);
+                }
+            });
+
+            console.log('PVF file menu rendered with', files.length, 'files');
+        }
+
+        // 从菜单打开 PVF 文件
+        async function openPvfFileFromMenu(filePath) {
+            console.log('openPvfFileFromMenu called with filePath:', filePath);
+            if (!confirm('确定要打开新的 PVF 文件吗？这将关闭当前文件。')) {
+                return;
+            }
+
+            showLoading(true);
+            try {
+                const response = await fetch('/api/open', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ filePath })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    // 清空当前状态
+                    tabs = [];
+                    activeTabId = null;
+                    currentFile = null;
+                    fileContentCache.clear();
+                    namePreviewCache.clear();
+                    namePreviewPromises.clear();
+
+                    // 重新加载文件树和书签
+                    loadFiles();
+                    loadBookmarks();
+
+                    updateStatus('已打开 PVF 文件');
+                } else {
+                    alert('打开文件失败: ' + data.error);
+                }
+            } catch (error) {
+                console.error('打开文件失败:', error);
+                alert('打开文件失败: ' + error);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // 从服务器加载书签
+        async function loadBookmarks() {
+            try {
+                console.log('Loading bookmarks from server...');
+                const response = await fetch('/api/bookmarks');
+                const data = await response.json();
+                console.log('Bookmarks data received:', data);
+                bookmarks = data.bookmarks || [];
+                console.log('Bookmarks array:', bookmarks);
+                renderBookmarks();
+            } catch (error) {
+                console.error('加载书签失败:', error);
+                bookmarks = [];
+                renderBookmarks();
+            }
+        }
+
+        // 保存书签到服务器
+        async function saveBookmarks() {
+            try {
+                const response = await fetch('/api/bookmarks', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ bookmarks })
+                });
+                const data = await response.json();
+                if (!data.success) {
+                    console.error('保存书签失败:', data.error);
+                }
+            } catch (error) {
+                console.error('保存书签失败:', error);
+            }
+        }
+
+        function showLoading(show) {
+            loading.classList.toggle('show', show);
+        }
+
+        async function performAdvancedSearch() {
+            const searchType = document.getElementById('searchTypeSelect').value;
+            const keyword = document.getElementById('searchKeywordInput').value.trim();
+            const startMatch = document.getElementById('searchStartMatch').checked;
+            const useRegex = document.getElementById('searchUseRegex').checked;
+            const caseSensitive = document.getElementById('searchCaseSensitive').checked;
+
+            if (!keyword) {
+                alert('请输入搜索关键词');
+                return;
+            }
+
+            hideModal(searchModal);
+            showLoading(true);
+            updateStatus('正在搜索...');
+
+            try {
+                const params = new URLSearchParams({
+                    type: searchType,
+                    keyword: keyword,
+                    startMatch: startMatch,
+                    useRegex: useRegex,
+                    caseSensitive: caseSensitive
+                });
+
+                const response = await fetch(`/api/advanced-search?${params}`);
+                const data = await response.json();
+
+                // 切换到搜索结果标签页
+                document.querySelectorAll('.sidebar-tab').forEach(t => t.classList.remove('active'));
+                document.querySelector('.sidebar-tab[data-tab="search"]').classList.add('active');
+                document.getElementById('fileTree').style.display = 'none';
+                document.getElementById('searchResults').style.display = 'block';
+
+                if (data.results && data.results.length > 0) {
+                    // 显示搜索结果
+                    showSearchResults(data.results);
+                    
+                    // 在移动端显示侧边栏
+                    if (window.innerWidth <= 768) {
+                        toggleSidebar(true);
+                    }
+                    
+                    updateStatus(`找到 ${data.results.length} 个匹配项`);
+                } else {
+                    document.getElementById('searchResults').innerHTML = '<div style="padding: 20px; text-align: center; color: #858585;">未找到匹配的文件</div>';
+                    updateStatus('未找到匹配项');
+                }
+            } catch (error) {
+                console.error('搜索失败:', error);
+                document.getElementById('searchResults').innerHTML = '<div style="padding: 20px; text-align: center; color: #ff6b6b;">搜索失败</div>';
+                updateStatus('搜索失败');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        function updateStatus(message) {
+            statusBar.textContent = message;
+        }
+
+        function showModal(modal) {
+            modal.classList.add('show');
+        }
+
+        function hideModal(modal) {
+            modal.classList.remove('show');
+        }
+
+        function toggleSidebar(show) {
+            if (show) {
+                sidebar.classList.remove('collapsed');
+                sidebarOverlay.classList.add('show');
+            } else {
+                sidebar.classList.add('collapsed');
+                sidebarOverlay.classList.remove('show');
+            }
+        }
+
+        function updateBreadcrumb(path) {
+            if (!path) {
+                breadcrumb.textContent = '未选择文件';
+                return;
+            }
+            breadcrumb.textContent = path;
+        }
+
+        async function openPvfFile() {
+            const filePath = document.getElementById('filePathInput').value.trim();
+            if (!filePath) {
+                alert('请输入文件路径');
+                return;
+            }
+
+            showLoading(true);
+            updateStatus('正在打开 PVF 文件...');
+
+            try {
+                const response = await fetch('/api/open', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        filePath,
+                        encodingMode: encodingSelect.value
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    currentFilePath = filePath;
+                    saveBtn.disabled = false;
+                    currentPath = '';
+                    pathHistory = [];
+                    loadFiles('');
+                    updateStatus(`已打开: ${filePath.split('/').pop()}`);
+                } else {
+                    alert('打开文件失败: ' + data.error);
+                }
+            } catch (error) {
+                alert('打开文件失败: ' + error.message);
+            } finally {
+                showLoading(false);
+                hideModal(openModal);
+            }
+        }
+
+        async function loadFiles(path = '') {
+            console.log('loadFiles called with path:', path);
+            currentPath = path;
+            currentFile = null; // 清除当前文件
+            updateBreadcrumb(path);
+
+            // 禁用路径操作按钮
+            if (copyPathBtn) copyPathBtn.disabled = true;
+            if (locateDirBtn) locateDirBtn.disabled = true;
+
+            try {
+                console.log('Fetching /api/files with path:', path);
+                const response = await fetch(`/api/files?path=${encodeURIComponent(path)}`);
+                const data = await response.json();
+                console.log('Received data:', data);
+
+                if (data.error) {
+                    console.error('加载文件列表失败:', data.error);
+                    fileTree.innerHTML = `<div style="padding: 20px; text-align: center; color: #ff6b6b;">加载失败: ${data.error}</div>`;
+                    return;
+                }
+
+                console.log('Rendering file tree with', data.files?.length || 0, 'files');
+                renderFileTree(data.files, path);
+            } catch (error) {
+                console.error('加载文件列表失败:', error);
+                fileTree.innerHTML = '<div style="padding: 20px; text-align: center; color: #ff6b6b;">加载失败: 无法连接到服务器</div>';
+            }
+        }
+
+        function renderFileTree(files, currentPath) {
+            if (files.length === 0) {
+                fileTree.innerHTML = '<div style="padding: 20px; text-align: center; color: #858585;">文件夹为空</div>';
+                return;
+            }
+
+            // 分离文件夹和文件
+            const folders = files.filter(f => !f.isFile);
+            const fileItems = files.filter(f => f.isFile);
+
+            // 构建树形结构HTML
+            let html = '';
+            
+            // 添加返回按钮（如果不是根目录）
+            if (currentPath !== '') {
+                html += `
+                    <div class="file-item back-item" data-path="${currentPath}">
+                        <span class="icon">⬆️</span>
+                        <span class="name">返回上一级</span>
+                    </div>
+                `;
+            }
+
+            // 添加文件夹（带展开图标）
+            folders.forEach(folder => {
+                html += `
+                    <div class="file-item folder-item" data-key="${folder.key}" data-is-file="false">
+                        <span class="toggle-icon">▶</span>
+                        <span class="icon">📁</span>
+                        <span class="name">${folder.name}</span>
+                    </div>
+                    <div class="folder-children" data-parent="${folder.key}" style="display: none; padding-left: 20px;"></div>
+                `;
+            });
+
+            // 添加文件
+            fileItems.forEach(file => {
+                const checkbox = batchMode ? `<div class="checkbox"><input type="checkbox" data-key="${file.key}"></div>` : '';
+                html += `
+                    <div class="file-item" data-key="${file.key}" data-is-file="true">
+                        ${checkbox}
+                        <span class="toggle-icon" style="visibility: hidden;"></span>
+                        <span class="icon">📄</span>
+                        <span class="name">${file.name}</span>
+                        ${file.size ? `<span class="size">${formatSize(file.size)}</span>` : ''}
+                    </div>
+                `;
+            });
+
+            fileTree.innerHTML = html;
+
+            // 添加点击事件
+            fileTree.querySelectorAll('.file-item').forEach(item => {
+                item.addEventListener('click', async (e) => {
+                    const key = item.dataset.key;
+                    const isFile = item.dataset.isFile === 'true';
+                    const isBack = item.classList.contains('back-item');
+
+                    if (isBack) {
+                        // 返回上一级
+                        const parentPath = currentPath.substring(0, currentPath.lastIndexOf('/'));
+                        loadFiles(parentPath);
+                    } else if (isFile) {
+                        // 加载文件内容
+                        loadFileContent(key);
+                    } else {
+                        // 展开/收起文件夹
+                        const childrenContainer = fileTree.querySelector(`.folder-children[data-parent="${key}"]`);
+                        const toggleIcon = item.querySelector('.toggle-icon');
+                        
+                        if (childrenContainer.style.display === 'none') {
+                            // 展开
+                            toggleIcon.textContent = '▼';
+                            childrenContainer.style.display = 'block';
+                            
+                            // 如果子内容为空，加载
+                            if (childrenContainer.innerHTML.trim() === '') {
+                                showLoading(true);
+                                try {
+                                    const response = await fetch(`/api/files?path=${encodeURIComponent(key)}`);
+                                    const data = await response.json();
+                                    
+                                    if (data.files && data.files.length > 0) {
+                                        renderSubTree(data.files, key, childrenContainer);
+                                    } else {
+                                        childrenContainer.innerHTML = '<div style="padding: 10px; color: #858585;">(空文件夹)</div>';
+                                    }
+                                } catch (error) {
+                                    console.error('加载子目录失败:', error);
+                                } finally {
+                                    showLoading(false);
+                                }
+                            }
+                        } else {
+                            // 收起
+                            toggleIcon.textContent = '▶';
+                            childrenContainer.style.display = 'none';
+                        }
+                    }
+                });
+            });
+        }
+
+        // 渲染子树（用于展开文件夹时）
+        function renderSubTree(files, parentPath, container) {
+            const folders = files.filter(f => !f.isFile);
+            const fileItems = files.filter(f => f.isFile);
+
+            let html = '';
+            
+            folders.forEach(folder => {
+                html += `
+                    <div class="file-item folder-item" data-key="${folder.key}" data-is-file="false">
+                        <span class="toggle-icon">▶</span>
+                        <span class="icon">📁</span>
+                        <span class="name">${folder.name}</span>
+                    </div>
+                    <div class="folder-children" data-parent="${folder.key}" style="display: none; padding-left: 20px;"></div>
+                `;
+            });
+
+            fileItems.forEach(file => {
+                html += `
+                    <div class="file-item" data-key="${file.key}" data-is-file="true">
+                        <span class="toggle-icon" style="visibility: hidden;"></span>
+                        <span class="icon">📄</span>
+                        <span class="name">${file.name}</span>
+                        ${file.size ? `<span class="size">${formatSize(file.size)}</span>` : ''}
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+
+            // 为子树添加点击事件
+            container.querySelectorAll('.file-item').forEach(item => {
+                item.addEventListener('click', async (e) => {
+                    e.stopPropagation(); // 防止冒泡
+                    const key = item.dataset.key;
+                    const isFile = item.dataset.isFile === 'true';
+
+                    if (isFile) {
+                        loadFileContent(key);
+                    } else {
+                        const childrenContainer = container.querySelector(`.folder-children[data-parent="${key}"]`);
+                        const toggleIcon = item.querySelector('.toggle-icon');
+                        
+                        if (childrenContainer.style.display === 'none') {
+                            toggleIcon.textContent = '▼';
+                            childrenContainer.style.display = 'block';
+                            
+                            if (childrenContainer.innerHTML.trim() === '') {
+                                showLoading(true);
+                                try {
+                                    const response = await fetch(`/api/files?path=${encodeURIComponent(key)}`);
+                                    const data = await response.json();
+                                    
+                                    if (data.files && data.files.length > 0) {
+                                        renderSubTree(data.files, key, childrenContainer);
+                                    } else {
+                                        childrenContainer.innerHTML = '<div style="padding: 10px; color: #858585;">(空文件夹)</div>';
+                                    }
+                                } catch (error) {
+                                    console.error('加载子目录失败:', error);
+                                } finally {
+                                    showLoading(false);
+                                }
+                            }
+                        } else {
+                            toggleIcon.textContent = '▶';
+                            childrenContainer.style.display = 'none';
+                        }
+                    }
+                });
+            });
+        }
+
+        // 虚拟滚动相关变量
+        let virtualScrollData = {
+            lines: [],
+            lineHeight: 19.2, // 12px * 1.6
+            visibleLines: 50,
+            scrollTop: 0,
+            containerHeight: 0,
+            languageClass: '',
+            showWhitespace: false
+        };
+
+        async function loadFileContent(key) {
+            // 创建或切换到标签页
+            createTab(key);
+
+            showLoading(true);
+            updateStatus('正在加载文件内容...');
+
+            try {
+                const response = await fetch(`/api/file?key=${encodeURIComponent(key)}`);
+                const data = await response.json();
+
+                currentFile = key;
+                updateBreadcrumb(key); // 更新文件路径显示
+                extractBtn.disabled = false;
+                
+                // 启用路径操作按钮
+                const copyPathBtn = document.getElementById('copyPathBtn');
+                const locateDirBtn = document.getElementById('locateDirBtn');
+                if (copyPathBtn) copyPathBtn.disabled = false;
+                if (locateDirBtn) locateDirBtn.disabled = false;
+                
+                // 检查是否为可编辑的文本文件
+                const ext = key.split('.').pop().toLowerCase();
+                const editableExtensions = [
+                'txt', 'nut', 'str', 'lst', 'equ', 'stk', 'ai', 'aic', 'key', 'als', 'act',
+                'chr', 'etc', 'dgn', 'map', 'shp', 'ora', 'atk', 'ui', 'mm', 'mob', 'npc',
+                'obj', 'qst', 'til', 'dwm', 'twn'
+            ];
+                editBtn.disabled = !editableExtensions.includes(ext);
+
+                // 根据文件扩展名确定语言类型
+                const languageClass = getLanguageClass(ext);
+                
+                // 分割成行（使用原始内容）
+                const lines = data.content.split('\n');
+                const lineCount = lines.length;
+
+                // 保存到缓存
+                fileContentCache.set(key, {
+                    content: data.content,
+                    encoding: encodingSelect.value,
+                    lines: lines,
+                    timestamp: Date.now()
+                });
+
+                // 标记标签为已加载
+                const currentTab = tabs.find(t => t.key === key);
+                if (currentTab) {
+                    currentTab.isLoaded = true;
+                }
+
+                // 判断是否使用虚拟滚动（超过500行使用虚拟滚动）
+                if (lineCount > 500) {
+                    // 使用虚拟滚动
+                    initVirtualScroll(lines, languageClass, key, showWhitespaceMode);
+                } else {
+                    // 小文件直接渲染，带行号
+                    const lines = data.content.split('\n');
+                    let linesHtml = `<div class="code-with-lines ${languageClass}">`;
+                    let lineNumbersHtml = '<div class="line-numbers">';
+                    let codeContentHtml = '<div class="code-content">';
+
+                    lines.forEach((line, index) => {
+                        lineNumbersHtml += `<div class="line-number">${index + 1}</div>`;
+                        // 不在这里替换空白字符，保留原始文本用于语法高亮
+                        const displayLine = escapeHtml(line);
+                        codeContentHtml += `<div class="code-line">${displayLine}</div>`;
+                    });
+
+                    lineNumbersHtml += '</div>';
+                    codeContentHtml += '</div>';
+                    linesHtml += lineNumbersHtml + codeContentHtml + '</div>';
+
+                    fileViewer.innerHTML = linesHtml;
+
+                    // 应用语法高亮
+                    applySyntaxHighlighting();
+
+                    // 在语法高亮后应用空白字符显示
+                    if (showWhitespaceMode) {
+                        applyWhitespaceDisplay(fileViewer);
+                    }
+
+                    // 添加路径链接
+                    addPathLinks(fileViewer);
+                }
+
+                updateStatus(`${key.split('/').pop()} (${lineCount} 行)`);
+            } catch (error) {
+                console.error('加载文件内容失败:', error);
+                fileViewer.innerHTML = '<div class="empty">加载失败</div>';
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        function initVirtualScroll(lines, languageClass, fileName, showWhitespace) {
+            virtualScrollData.lines = lines;
+            virtualScrollData.languageClass = languageClass;
+            virtualScrollData.showWhitespace = showWhitespace;
+            const totalHeight = lines.length * virtualScrollData.lineHeight;
+            
+            // 创建虚拟滚动容器
+            fileViewer.innerHTML = `
+                <div class="virtual-scroll-container" id="virtualScrollContainer">
+                    <div class="virtual-scroll-content" id="virtualScrollContent" style="height: ${totalHeight}px;"></div>
+                    <div class="virtual-scroll-viewport" id="virtualScrollViewport"></div>
+                </div>
+            `;
+            
+            const container = document.getElementById('virtualScrollContainer');
+            const viewport = document.getElementById('virtualScrollViewport');
+            
+            // 计算可见行数
+            virtualScrollData.containerHeight = fileViewer.clientHeight;
+            virtualScrollData.visibleLines = Math.ceil(virtualScrollData.containerHeight / virtualScrollData.lineHeight) + 10; // 多渲染10行作为缓冲
+            
+            // 初始渲染
+            renderVisibleLines(0, 0);
+            
+            // 监听滚动事件（包括wheel、touch、scroll）
+            let scrollTimeout;
+            let savedScrollLeft = 0;
+            
+            // 捕获wheel事件
+            container.addEventListener('wheel', (e) => {
+                // 垂直滚动时保存横向位置
+                if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+                    savedScrollLeft = container.scrollLeft;
+                }
+            }, { passive: true });
+            
+            // 监听scroll事件
+            container.addEventListener('scroll', () => {
+                // 保存横向滚动位置
+                savedScrollLeft = container.scrollLeft;
+                
+                clearTimeout(scrollTimeout);
+                scrollTimeout = setTimeout(() => {
+                    renderVisibleLines(container.scrollTop, savedScrollLeft);
+                }, 16); // 约60fps
+            }, { passive: true });
+            
+            // 触摸事件处理（移动端）
+            let touchStartScrollLeft = 0;
+            container.addEventListener('touchstart', (e) => {
+                touchStartScrollLeft = container.scrollLeft;
+            }, { passive: true });
+            
+            container.addEventListener('touchend', () => {
+                // 触摸结束时保存当前横向位置
+                savedScrollLeft = container.scrollLeft;
+            }, { passive: true });
+            
+            // 监听窗口大小变化
+            window.addEventListener('resize', () => {
+                virtualScrollData.containerHeight = fileViewer.clientHeight;
+                virtualScrollData.visibleLines = Math.ceil(virtualScrollData.containerHeight / virtualScrollData.lineHeight) + 10;
+                renderVisibleLines(container.scrollTop, container.scrollLeft);
+            });
+        }
+
+        function renderVisibleLines(scrollTop, savedScrollLeft = 0) {
+            const container = document.getElementById('virtualScrollContainer');
+            const viewport = document.getElementById('virtualScrollViewport');
+            if (!viewport || !container) return;
+            
+            // 如果没有传入savedScrollLeft，使用当前值
+            if (savedScrollLeft === 0) {
+                savedScrollLeft = container.scrollLeft;
+            }
+            
+            const startLine = Math.floor(scrollTop / virtualScrollData.lineHeight);
+            const endLine = Math.min(startLine + virtualScrollData.visibleLines, virtualScrollData.lines.length);
+            
+            // 计算视口位置
+            const viewportTop = startLine * virtualScrollData.lineHeight;
+            viewport.style.top = `${viewportTop}px`;
+            viewport.style.height = `${(endLine - startLine) * virtualScrollData.lineHeight}px`;
+            
+            // 构建HTML
+            let linesHtml = '<div class="code-with-lines">';
+            let lineNumbersHtml = '<div class="line-numbers">';
+            let codeContentHtml = '<div class="code-content">';
+            
+            for (let i = startLine; i < endLine; i++) {
+                const line = virtualScrollData.lines[i] || '';
+                lineNumbersHtml += `<div class="line-number">${i + 1}</div>`;
+
+                // 不在这里替换空白字符，保留原始文本用于语法高亮
+                const displayLine = escapeHtml(line);
+                codeContentHtml += `<div class="code-line">${displayLine}</div>`;
+            }
+
+            lineNumbersHtml += '</div>';
+            codeContentHtml += '</div>';
+            linesHtml += lineNumbersHtml + codeContentHtml + '</div>';
+
+            // 设置DOM内容（这会重置scrollLeft）
+            viewport.innerHTML = linesHtml;
+            
+            // 立即恢复scrollLeft（第一次）
+            if (savedScrollLeft > 0) {
+                container.scrollLeft = savedScrollLeft;
+            }
+
+            // 应用语法高亮（使用requestAnimationFrame避免阻塞UI）
+            if (typeof Prism !== 'undefined') {
+                requestAnimationFrame(() => {
+                    const codeLines = viewport.querySelectorAll('.code-line');
+                    codeLines.forEach((line, index) => {
+                        const lineIndex = startLine + index;
+                        const originalLine = virtualScrollData.lines[lineIndex] || '';
+
+                        // 只对包含代码的行进行高亮
+                        if (originalLine.trim() && !originalLine.startsWith('#')) {
+                            try {
+                                const lang = virtualScrollData.languageClass.replace('language-', '');
+                                const highlighted = Prism.highlight(originalLine, Prism.languages[lang] || Prism.languages.pvf, virtualScrollData.languageClass);
+                                line.innerHTML = highlighted;
+                            } catch (e) {
+                                // 高亮失败，保持原样
+                            }
+                        }
+                    });
+
+                    // 在所有语法高亮完成后，应用空白字符显示
+                    if (virtualScrollData.showWhitespace) {
+                        applyWhitespaceDisplay(viewport);
+                    }
+
+                    // 添加路径链接
+                    addPathLinks(viewport);
+                    
+                    // 第二次恢复scrollLeft（在DOM操作后）
+                    if (savedScrollLeft > 0) {
+                        requestAnimationFrame(() => {
+                            container.scrollLeft = savedScrollLeft;
+                            
+                            // 第三次恢复scrollLeft（确保移动端也能正确恢复）
+                            requestAnimationFrame(() => {
+                                if (Math.abs(container.scrollLeft - savedScrollLeft) > 1) {
+                                    container.scrollLeft = savedScrollLeft;
+                                }
+                            });
+                        });
+                    }
+                });
+            }
+        }
+
+        function applySyntaxHighlighting() {
+            if (typeof Prism !== 'undefined') {
+                // 查找代码行元素
+                const codeLines = fileViewer.querySelectorAll('.code-line');
+
+                if (codeLines.length > 0) {
+                    // 使用与虚拟滚动相同的逐行高亮方式
+                    codeLines.forEach((line) => {
+                        const originalLine = line.textContent || '';
+
+                        // 只对包含代码的行进行高亮
+                        if (originalLine.trim() && !originalLine.startsWith('#')) {
+                            try {
+                                // 从fileViewer获取language class
+                                const langElement = fileViewer.querySelector('[class*="language-"]');
+                                if (langElement) {
+                                    const langClass = Array.from(langElement.classList).find(cls => cls.startsWith('language-'));
+                                    if (langClass) {
+                                        const lang = langClass.replace('language-', '');
+                                        const highlighted = Prism.highlight(originalLine, Prism.languages[lang] || Prism.languages.pvf, langClass);
+                                        line.innerHTML = highlighted;
+                                    }
+                                }
+                            } catch (e) {
+                                // 高亮失败，保持原样
+                            }
+                        }
+                    });
+                } else {
+                    // 降级方案：查找pre元素（兼容旧代码）
+                    const preElement = fileViewer.querySelector('pre');
+                    if (preElement) {
+                        Prism.highlightElement(preElement);
+                    }
+                }
+            } else {
+                // Prism还没加载完成，等待加载
+                const checkPrism = setInterval(() => {
+                    if (typeof Prism !== 'undefined') {
+                        clearInterval(checkPrism);
+                        applySyntaxHighlighting();
+                    }
+                }, 100);
+                setTimeout(() => clearInterval(checkPrism), 5000);
+            }
+        }
+
+        // 根据文件扩展名返回对应的 Prism 语言类
+        function getLanguageClass(ext) {
+            const pvfExtensions = [
+                'act', 'ani', 'skl', 'lst', 'str', 'equ', 'stk', 'ai', 'aic', 'key', 'als',
+                'chr', 'etc', 'dgn', 'map', 'shp', 'ora', 'atk', 'ui', 'mm', 'mob', 'npc',
+                'obj', 'qst', 'til', 'dwm', 'twn'
+            ];
+            
+            if (pvfExtensions.includes(ext)) {
+                return 'language-pvf';
+            }
+            
+            // 其他常见文件类型
+            const languageMap = {
+                'js': 'language-javascript',
+                'ts': 'language-typescript',
+                'json': 'language-json',
+                'xml': 'language-xml',
+                'html': 'language-html',
+                'css': 'language-css',
+                'py': 'language-python',
+                'lua': 'language-lua',
+                'nut': 'language-squirrel',  // Squirrel 脚本语言
+                'sql': 'language-sql',
+                'txt': 'language-plaintext',
+                'cfg': 'language-plaintext',
+                'def': 'language-plaintext',
+                'inc': 'language-plaintext'
+            };
+            
+            return languageMap[ext] || 'language-plaintext';
+        }
+
+        async function extractFile() {
+            if (!currentFile) return;
+
+            showLoading(true);
+            updateStatus('正在准备下载文件...');
+
+            try {
+                // 从缓存中获取文件内容
+                const cached = fileContentCache.get(currentFile);
+                
+                if (!cached || !cached.content) {
+                    // 如果缓存中没有，从服务器获取
+                    const response = await fetch(`/api/file?key=${encodeURIComponent(currentFile)}`);
+                    if (!response.ok) {
+                        throw new Error('无法获取文件内容');
+                    }
+                    const data = await response.json();
+                    
+                    // 创建下载
+                    downloadFile(currentFile, data.content);
+                } else {
+                    // 使用缓存的内容
+                    downloadFile(currentFile, cached.content);
+                }
+                
+                hideModal(extractModal);
+            } catch (error) {
+                alert('下载失败: ' + error.message);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // 创建下载链接并触发下载
+        function downloadFile(filename, content) {
+            try {
+                // 创建Blob对象
+                const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+                
+                // 创建下载链接
+                const url = URL.createObjectURL(blob);
+                
+                // 创建临时链接并触发下载
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename.split('/').pop(); // 只使用文件名，不包括路径
+                document.body.appendChild(a);
+                a.click();
+                
+                // 清理
+                setTimeout(() => {
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                }, 100);
+                
+                updateStatus('文件已下载: ' + filename);
+            } catch (error) {
+                throw new Error('创建下载链接失败: ' + error.message);
+            }
+        }
+
+        async function savePvfFile() {
+            const savePath = document.getElementById('savePathInput').value.trim();
+            if (!savePath) {
+                alert('请输入保存路径');
+                return;
+            }
+
+            showLoading(true);
+            updateStatus('正在保存 PVF 文件...');
+
+            try {
+                const response = await fetch('/api/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ filePath: savePath })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('PVF 文件已保存');
+                } else {
+                    alert('保存失败: ' + data.error);
+                }
+            } catch (error) {
+                alert('保存失败: ' + error.message);
+            } finally {
+                showLoading(false);
+                hideModal(saveModal);
+            }
+        }
+
+        function formatSize(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + ' KB';
+            return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // 显示空白字符（不显示换行符）
+        function showWhitespace(text) {
+            // 直接替换空白字符为带样式的HTML
+            return text
+                .replace(/\t/g, '<span class="whitespace-tab">→</span>')
+                .replace(/ /g, '<span class="whitespace-space">·</span>');
+        }
+
+        function applyWhitespaceDisplay(container) {
+            // 查找所有文本节点，替换其中的 Tab 和空格
+            const walker = document.createTreeWalker(
+                container,
+                NodeFilter.SHOW_TEXT,
+                null,
+                false
+            );
+
+            const textNodes = [];
+            let node;
+            while (node = walker.nextNode()) {
+                // 只处理文本节点，并且不包含 HTML 标签
+                if (node.textContent && !node.textContent.includes('<')) {
+                    textNodes.push(node);
+                }
+            }
+
+            textNodes.forEach(textNode => {
+                const parent = textNode.parentNode;
+                if (parent) {
+                    // 替换 Tab
+                    const parts = textNode.textContent.split('\t');
+                    if (parts.length > 1) {
+                        const fragment = document.createDocumentFragment();
+                        for (let i = 0; i < parts.length; i++) {
+                            fragment.appendChild(document.createTextNode(parts[i]));
+                            if (i < parts.length - 1) {
+                                const tabSpan = document.createElement('span');
+                                tabSpan.className = 'whitespace-tab';
+                                tabSpan.textContent = '→';
+                                fragment.appendChild(tabSpan);
+                            }
+                        }
+                        parent.replaceChild(fragment, textNode);
+                    }
+                }
+            });
+        }
+
+        // 查找文件（不区分大小写）- 通过尝试不同变体
+        async function findFileIgnoreCase(path) {
+            // 获取当前文件的目录
+            let currentDir = '';
+            if (currentFile) {
+                const lastSlashIndex = currentFile.lastIndexOf('/');
+                if (lastSlashIndex > 0) {
+                    currentDir = currentFile.substring(0, lastSlashIndex);
+                }
+            }
+
+            // 转换为小写（后端已实现大小写不敏感）
+            const lowerPath = path.toLowerCase();
+
+            // 尝试不同的路径变体
+            const variations = [
+                path,  // 原始路径（相对根目录）
+                lowerPath,  // 全小写
+                path.toUpperCase(),  // 全大写
+                // 如果当前在子目录，尝试添加当前目录前缀
+                currentDir ? currentDir + '/' + path : null,
+                currentDir ? currentDir + '/' + lowerPath : null,
+                // 尝试在常见的脚本目录下查找
+                'sqr/' + path,
+                'sqr/' + lowerPath,
+                'sqr/character/' + path,
+                'sqr/character/' + lowerPath,
+                // 尝试移除首字母大写的转换
+                lowerPath.split('/').map(part => part).join('/'),
+            ].filter(v => v !== null);
+
+            // 依次尝试每个变体
+            for (const variation of variations) {
+                try {
+                    const response = await fetch(`/api/file?key=${encodeURIComponent(variation)}`);
+                    if (response.ok) {
+                        // 检查文件内容是否有效（不是空内容或错误信息）
+                        const data = await response.json();
+                        if (data.content && data.content.trim().length > 0 && !data.error) {
+                            console.log('Found file at:', variation);
+                            return variation;
+                        }
+                    }
+                } catch (error) {
+                    // 继续尝试下一个变体
+                    continue;
+                }
+            }
+
+            console.log('File not found for path:', path);
+            return null;
+        }
+
+        // 识别并添加路径链接
+        function addPathLinks(container) {
+            // 检查是否是 .lst 文件
+            const isLstFile = currentFile && currentFile.toLowerCase().endsWith('.lst');
+
+            // 匹配路径的正则表达式（包括引号中的路径）
+            const pathRegex = /`([^`]*?\/?[^`]*?\.[a-zA-Z0-9]+)`|"([^"]*?\/?[^"]*?\.[a-zA-Z0-9]+)"|'([^']*?\/?[^']*?\.[a-zA-Z0-9]+)'/gi;
+
+            const walker = document.createTreeWalker(
+                container,
+                NodeFilter.SHOW_TEXT,
+                {
+                    acceptNode: function(node) {
+                        // 只处理文本节点，并且不包含 HTML 标签
+                        if (node.textContent && !node.textContent.includes('<') && pathRegex.test(node.textContent)) {
+                            return NodeFilter.FILTER_ACCEPT;
+                        }
+                        return NodeFilter.FILTER_REJECT;
+                    }
+                },
+                false
+            );
+
+            const textNodes = [];
+            let node;
+            while (node = walker.nextNode()) {
+                textNodes.push(node);
+            }
+
+            textNodes.forEach(textNode => {
+                const parent = textNode.parentNode;
+                if (parent) {
+                    const fragment = document.createDocumentFragment();
+                    let lastIndex = 0;
+                    let match;
+
+                    // 重置正则表达式
+                    pathRegex.lastIndex = 0;
+
+                    while ((match = pathRegex.exec(textNode.textContent)) !== null) {
+                        // 添加匹配前的文本
+                        if (match.index > lastIndex) {
+                            fragment.appendChild(document.createTextNode(textNode.textContent.substring(lastIndex, match.index)));
+                        }
+
+                        // 提取完整匹配的文本和实际路径
+                        const fullPath = match[0];
+                        const backtickPath = match[1];      // 反引号中的路径
+                        const doubleQuotePath = match[2];   // 双引号中的路径
+                        const singleQuotePath = match[3];   // 单引号中的路径
+
+                        // 确定路径和引号类型
+                        let path, quoteChar;
+                        if (backtickPath) {
+                            path = backtickPath;
+                            quoteChar = '`';
+                        } else if (doubleQuotePath) {
+                            path = doubleQuotePath;
+                            quoteChar = '"';
+                        } else if (singleQuotePath) {
+                            path = singleQuotePath;
+                            quoteChar = "'";
+                        } else {
+                            continue;  // 跳过无效匹配
+                        }
+
+                        // 添加左引号
+                        fragment.appendChild(document.createTextNode(quoteChar));
+
+                        // 创建链接元素
+                        const link = document.createElement('span');
+                        link.className = 'path-link';
+                        link.textContent = path;
+                        link.addEventListener('click', async (e) => {
+                            e.stopPropagation();
+                            // 不区分大小写查找文件
+                            const actualPath = await findFileIgnoreCase(path);
+                            if (actualPath) {
+                                loadFileContent(actualPath);
+                            } else {
+                                updateStatus('文件未找到: ' + path);
+                            }
+                        });
+
+                        fragment.appendChild(link);
+
+                        // 添加右引号
+                        fragment.appendChild(document.createTextNode(quoteChar));
+
+                        // 如果是 .lst 文件，在引号外添加名称预览
+                        if (isLstFile) {
+                            const namePreview = document.createElement('span');
+                            namePreview.className = 'name-preview';
+                            namePreview.textContent = ' 加载中...';
+                            fragment.appendChild(namePreview);
+
+                            // 异步加载名称
+                            loadNamePreview(path, namePreview);
+                        }
+
+                        lastIndex = pathRegex.lastIndex;
+                    }
+
+                    // 添加剩余的文本
+                    if (lastIndex < textNode.textContent.length) {
+                        fragment.appendChild(document.createTextNode(textNode.textContent.substring(lastIndex)));
+                    }
+
+                    parent.replaceChild(fragment, textNode);
+                }
+            });
+        }
+
+        // 加载名称预览（带缓存）
+        async function loadNamePreview(path, previewElement) {
+            try {
+                // 检查缓存
+                if (namePreviewCache.has(path)) {
+                    const cachedName = namePreviewCache.get(path);
+                    if (cachedName) {
+                        previewElement.textContent = cachedName;
+                        previewElement.style.display = 'inline';
+                    } else {
+                        previewElement.textContent = '';
+                        previewElement.style.display = 'none';
+                    }
+                    return;
+                }
+
+                // 检查是否已有正在进行的请求
+                if (namePreviewPromises.has(path)) {
+                    const promise = namePreviewPromises.get(path);
+                    const name = await promise;
+                    if (name) {
+                        previewElement.textContent = name;
+                        previewElement.style.display = 'inline';
+                    } else {
+                        previewElement.textContent = '';
+                        previewElement.style.display = 'none';
+                    }
+                    return;
+                }
+
+                // 创建新的请求Promise并缓存
+                const promise = (async () => {
+                    const actualPath = await findFileIgnoreCase(path);
+                    if (!actualPath) {
+                        namePreviewCache.set(path, '');
+                        return '';
+                    }
+
+                    const response = await fetch(`/api/file?key=${encodeURIComponent(actualPath)}`);
+                    if (!response.ok) {
+                        namePreviewCache.set(path, '');
+                        return '';
+                    }
+
+                    const data = await response.json();
+                    const content = data.content;
+
+                    // 提取 [name] 标签的内容
+                    const nameMatch = content.match(/\[name\]\s*\n\s*(.+?)(?:\n|$)/i);
+                    if (nameMatch && nameMatch[1]) {
+                        // 移除所有类型的引号：单引号、双引号、反引号
+                        const name = nameMatch[1].trim().replace(/^["'`]|["'`]$/g, '');
+                        namePreviewCache.set(path, name);
+                        return name;
+                    } else {
+                        // 尝试其他常见的名称标签格式
+                        const altNameMatch = content.match(/name\s*=\s*["'`]([^"'`]+)["'`]/i);
+                        if (altNameMatch && altNameMatch[1]) {
+                            const name = altNameMatch[1].trim();
+                            namePreviewCache.set(path, name);
+                            return name;
+                        } else {
+                            // 再尝试没有引号的格式
+                            const noQuoteMatch = content.match(/name\s*=\s*([^\s]+)/i);
+                            if (noQuoteMatch && noQuoteMatch[1]) {
+                                const name = noQuoteMatch[1].trim();
+                                namePreviewCache.set(path, name);
+                                return name;
+                            } else {
+                                namePreviewCache.set(path, '');
+                                return '';
+                            }
+                        }
+                    }
+                })();
+
+                namePreviewPromises.set(path, promise);
+
+                // 等待结果并更新UI
+                const name = await promise;
+                if (name) {
+                    previewElement.textContent = name;
+                    previewElement.style.display = 'inline';
+                } else {
+                    previewElement.textContent = '';
+                    previewElement.style.display = 'none';
+                }
+            } catch (error) {
+                console.error('加载名称预览失败:', error);
+                previewElement.textContent = '';
+                previewElement.style.display = 'none';
+                namePreviewCache.set(path, '');
+            } finally {
+                // 清理Promise缓存
+                namePreviewPromises.delete(path);
+            }
+        }
+
+        // 检查是否显示空白字符
+        let showWhitespaceMode = true; // 默认显示空白字符
+
+        // 等待DOM加载完成后添加事件监听器
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('DOMContentLoaded event fired');
+
+            // 事件监听
+            if (toggleSidebarBtn) {
+                toggleSidebarBtn.addEventListener('click', () => toggleSidebar(true));
+            }
+            if (sidebarOverlay) {
+                sidebarOverlay.addEventListener('click', () => toggleSidebar(false));
+            }
+
+            if (openBtn) {
+                openBtn.addEventListener('click', () => showModal(openModal));
+            }
+            if (saveBtn) {
+                saveBtn.addEventListener('click', () => showModal(saveModal));
+            }
+            if (editBtn) {
+                editBtn.addEventListener('click', openEditModal);
+            }
+            if (extractBtn) {
+                extractBtn.addEventListener('click', () => {
+                    if (!currentFile) {
+                        alert('没有选中的文件');
+                        return;
+                    }
+                    document.getElementById('extractFileName').textContent = currentFile;
+                    showModal(extractModal);
+                });
+            }
+            if (advancedSearchBtn) {
+                advancedSearchBtn.addEventListener('click', () => showModal(searchModal));
+            }
+
+            // 复制路径按钮
+            const copyPathBtn = document.getElementById('copyPathBtn');
+            if (copyPathBtn) {
+                copyPathBtn.addEventListener('click', () => {
+                    if (!currentFile) {
+                        alert('没有选中的文件');
+                        return;
+                    }
+                    navigator.clipboard.writeText(currentFile).then(() => {
+                        updateStatus('路径已复制: ' + currentFile);
+                    }).catch(() => {
+                        // 降级方案
+                        const textarea = document.createElement('textarea');
+                        textarea.value = currentFile;
+                        textarea.style.position = 'fixed';
+                        textarea.style.opacity = '0';
+                        document.body.appendChild(textarea);
+                        textarea.select();
+                        document.execCommand('copy');
+                        document.body.removeChild(textarea);
+                        updateStatus('路径已复制: ' + currentFile);
+                    });
+                });
+            }
+
+            // 定位到目录按钮
+            const locateDirBtn = document.getElementById('locateDirBtn');
+            if (locateDirBtn) {
+                locateDirBtn.addEventListener('click', async () => {
+                    if (!currentFile) {
+                        alert('没有选中的文件');
+                        return;
+                    }
+                    
+                    const lastSlashIndex = currentFile.lastIndexOf('/');
+                    if (lastSlashIndex > 0) {
+                        const dirPath = currentFile.substring(0, lastSlashIndex);
+                        const fileName = currentFile.substring(lastSlashIndex + 1);
+                        
+                        // 先加载到目标目录
+                        await loadFiles(dirPath);
+                        
+                        // 切换到目录标签页
+                        document.querySelectorAll('.sidebar-tab').forEach(t => t.classList.remove('active'));
+                        document.querySelector('.sidebar-tab[data-tab="tree"]').classList.add('active');
+                        document.getElementById('fileTree').style.display = 'block';
+                        document.getElementById('searchResults').style.display = 'none';
+                        
+                        // 在移动端显示侧边栏
+                        if (window.innerWidth <= 768) {
+                            toggleSidebar(true);
+                        }
+                        
+                        // 等待DOM更新后选中文件
+                        setTimeout(() => {
+                            // 移除所有选中状态
+                            document.querySelectorAll('.file-item.selected').forEach(item => {
+                                item.classList.remove('selected');
+                            });
+                            
+                            // 选中目标文件
+                            const fileItems = document.querySelectorAll('.file-item[data-is-file="true"]');
+                            fileItems.forEach(item => {
+                                if (item.dataset.key === currentFile) {
+                                    item.classList.add('selected');
+                                    item.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                }
+                            });
+                            updateStatus('已定位到: ' + fileName);
+                        }, 100);
+                    } else {
+                        await loadFiles('');
+                        updateStatus('已定位到根目录');
+                    }
+                });
+            }
+
+            // 打开文件模态框事件监听器
+            const cancelOpenBtn = document.getElementById('cancelOpenBtn');
+            const confirmOpenBtn = document.getElementById('confirmOpenBtn');
+            const filePathInput = document.getElementById('filePathInput');
+            if (cancelOpenBtn) {
+                cancelOpenBtn.addEventListener('click', () => hideModal(openModal));
+            }
+            if (confirmOpenBtn) {
+                confirmOpenBtn.addEventListener('click', openPvfFile);
+            }
+            if (filePathInput) {
+                filePathInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') openPvfFile();
+                });
+            }
+
+            const cancelExtractBtn = document.getElementById('cancelExtractBtn');
+            const confirmExtractBtn = document.getElementById('confirmExtractBtn');
+            if (cancelExtractBtn) {
+                cancelExtractBtn.addEventListener('click', () => hideModal(extractModal));
+            }
+            if (confirmExtractBtn) {
+                confirmExtractBtn.addEventListener('click', extractFile);
+            }
+
+            const destPathInput = document.getElementById('destPathInput');
+            if (destPathInput) {
+                destPathInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') extractFile();
+                });
+            }
+
+            const cancelSaveBtn = document.getElementById('cancelSaveBtn');
+            const confirmSaveBtn = document.getElementById('confirmSaveBtn');
+            const savePathInput = document.getElementById('savePathInput');
+            if (cancelSaveBtn) {
+                cancelSaveBtn.addEventListener('click', () => hideModal(saveModal));
+            }
+            if (confirmSaveBtn) {
+                confirmSaveBtn.addEventListener('click', savePvfFile);
+            }
+            if (savePathInput) {
+                savePathInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') savePvfFile();
+                });
+            }
+
+            // 高级搜索模态框事件监听
+            const cancelSearchBtn = document.getElementById('cancelSearchBtn');
+            if (cancelSearchBtn) {
+                cancelSearchBtn.addEventListener('click', () => hideModal(searchModal));
+            }
+            const confirmSearchBtn = document.getElementById('confirmSearchBtn');
+            if (confirmSearchBtn) {
+                confirmSearchBtn.addEventListener('click', performAdvancedSearch);
+            }
+            const searchKeywordInput = document.getElementById('searchKeywordInput');
+            if (searchKeywordInput) {
+                searchKeywordInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') performAdvancedSearch();
+                });
+            }
+
+            // 搜索输入框事件监听
+            if (searchInput) {
+                searchInput.addEventListener('input', async (e) => {
+                    const query = e.target.value.trim();
+                    if (!query) {
+                        // 搜索为空时，切换回目录标签页并重新加载当前目录
+                        document.querySelectorAll('.sidebar-tab').forEach(t => t.classList.remove('active'));
+                        document.querySelector('.sidebar-tab[data-tab="tree"]').classList.add('active');
+                        document.getElementById('fileTree').style.display = 'block';
+                        document.getElementById('searchResults').style.display = 'none';
+                        loadFiles(currentPath);
+                        return;
+                    }
+
+                    // 有搜索内容时，切换到搜索结果标签页
+                    document.querySelectorAll('.sidebar-tab').forEach(t => t.classList.remove('active'));
+                    document.querySelector('.sidebar-tab[data-tab="search"]').classList.add('active');
+                    document.getElementById('fileTree').style.display = 'none';
+                    document.getElementById('searchResults').style.display = 'block';
+
+                    try {
+                        const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+                        const data = await response.json();
+                        
+                        if (data.results && data.results.length > 0) {
+                            renderFileTree(data.results.map(key => ({
+                                key,
+                                name: key.split('/').pop(),
+                                isFile: true
+                            })), '');
+                        } else {
+                            document.getElementById('searchResults').innerHTML = '<div style="padding: 20px; text-align: center; color: #858585;">未找到匹配的文件</div>';
+                        }
+                    } catch (error) {
+                        console.error('搜索失败:', error);
+                    }
+                });
+            }
+
+            // 编码切换时重新加载当前文件
+            if (encodingSelect) {
+                encodingSelect.addEventListener('change', async () => {
+                    if (currentFile) {
+                        showLoading(true);
+                        updateStatus('正在重新加载文件...');
+                        try {
+                            const response = await fetch(`/api/file?key=${encodeURIComponent(currentFile)}`);
+                            const data = await response.json();
+                            
+                            const ext = currentFile.split('.').pop().toLowerCase();
+                            const languageClass = getLanguageClass(ext);
+
+                            const content = escapeHtml(data.content);
+                            const preClass = languageClass;
+
+                            fileViewer.innerHTML = `<pre class="${preClass}">${content}</pre>`;
+                            updateStatus(`${currentFile.split('/').pop()} (编码: ${encodingSelect.options[encodingSelect.selectedIndex].text})`);
+
+                            // 应用语法高亮
+                            if (typeof Prism !== 'undefined') {
+                                const preElement = fileViewer.querySelector('pre');
+                                if (preElement) {
+                                    Prism.highlightElement(preElement);
+                                    // 在语法高亮后应用空白字符显示
+                                    if (showWhitespaceMode) {
+                                        applyWhitespaceDisplay(preElement);
+                                    }
+                                    // 添加路径链接
+                                    addPathLinks(preElement);
+                                }
+                            } else {
+                                // 等待Prism加载完成
+                                const checkPrism = setInterval(() => {
+                                    if (typeof Prism !== 'undefined') {
+                                        clearInterval(checkPrism);
+                                        const preElement = fileViewer.querySelector('pre');
+                                        if (preElement) {
+                                            Prism.highlightElement(preElement);
+                                            if (showWhitespaceMode) {
+                                                applyWhitespaceDisplay(preElement);
+                                            }
+                                            addPathLinks(preElement);
+                                        }
+                                    }
+                                }, 100);
+                                setTimeout(() => clearInterval(checkPrism), 5000);
+                            }
+                        } catch (error) {
+                            console.error('重新加载失败:', error);
+                        } finally {
+                            showLoading(false);
+                        }
+                    } else {
+                        updateStatus(`编码已切换为: ${encodingSelect.options[encodingSelect.selectedIndex].text}`);
+                    }
+                });
+            }
+
+            // 切换空白字符显示
+            const toggleWhitespaceBtn = document.getElementById('toggleWhitespaceBtn');
+            if (toggleWhitespaceBtn) {
+                toggleWhitespaceBtn.addEventListener('click', () => {
+                    showWhitespaceMode = !showWhitespaceMode;
+                    
+                    if (showWhitespaceMode) {
+                        toggleWhitespaceBtn.style.background = '#007acc';
+                        toggleWhitespaceBtn.style.color = 'white';
+                    } else {
+                        toggleWhitespaceBtn.style.background = '#3c3c3c';
+                        toggleWhitespaceBtn.style.color = '#d4d4d4';
+                    }
+                    
+                    // 如果有当前文件，重新加载
+                    if (currentFile) {
+                        loadFileContent(currentFile);
+                    }
+                });
+            }
+
+            // 初始化按钮状态（默认激活）
+            if (toggleWhitespaceBtn) {
+                toggleWhitespaceBtn.style.background = '#007acc';
+                toggleWhitespaceBtn.style.color = 'white';
+            }
+
+            // 标签页切换
+            const sidebarTabs = document.querySelectorAll('.sidebar-tab');
+            if (sidebarTabs.length > 0) {
+                sidebarTabs.forEach(tab => {
+                    tab.addEventListener('click', () => {
+                        // 移除所有active类
+                        document.querySelectorAll('.sidebar-tab').forEach(t => t.classList.remove('active'));
+                        
+                        // 添加active类到当前标签
+                        tab.classList.add('active');
+                        
+                        // 切换显示内容
+                        const tabName = tab.dataset.tab;
+                        const fileTree = document.getElementById('fileTree');
+                        const searchResults = document.getElementById('searchResults');
+                        
+                        if (fileTree && searchResults) {
+                            if (tabName === 'tree') {
+                                fileTree.style.display = 'block';
+                                searchResults.style.display = 'none';
+                            } else {
+                                fileTree.style.display = 'none';
+                                searchResults.style.display = 'block';
+                            }
+                        }
+                    });
+                });
+            }
+
+            // 显示搜索结果
+            function showSearchResults(results) {
+                const searchResults = document.getElementById('searchResults');
+                
+                if (!searchResults) return;
+                
+                if (!results || results.length === 0) {
+                    searchResults.innerHTML = '<div style="padding: 20px; text-align: center; color: #858585;">未找到匹配的文件</div>';
+                    return;
+                }
+                
+                let html = `<div style="padding: 8px 10px; color: #858585; font-size: 12px;">找到 ${results.length} 个结果</div>`;
+                
+                results.forEach(item => {
+                    html += `
+                        <div class="search-result-item" data-key="${item.key}">
+                            <div class="search-result-name">📄 ${item.name}</div>
+                            <div class="search-result-path">${item.key}</div>
+                            ${item.match ? `<div class="search-result-match">${item.match}</div>` : ''}
+                        </div>
+                    `;
+                });
+                
+                searchResults.innerHTML = html;
+                
+                // 添加点击事件
+                searchResults.querySelectorAll('.search-result-item').forEach(item => {
+                    item.addEventListener('click', () => {
+                        const key = item.dataset.key;
+                        loadFileContent(key);
+                        
+                        // 在移动端关闭侧边栏
+                        if (window.innerWidth <= 768) {
+                            toggleSidebar(false);
+                        }
+                    });
+                });
+            }
+
+            // 检查状态
+            fetch('/api/status').then(res => res.json()).then(data => {
+                if (data.hasOpenFile) {
+                    saveBtn.disabled = false;
+                    loadFiles('');
+                    updateStatus(`已打开: ${data.pvfPath.split('/').pop()}`);
+                } else {
+                    if (fileTree) {
+                        fileTree.innerHTML = '<div style="padding: 20px; text-align: center; color: #858585;">请先打开 PVF 文件</div>';
+                    }
+                }
+            }).catch(error => {
+                console.error('Status check failed:', error);
+                if (fileTree) {
+                    fileTree.innerHTML = '<div style="padding: 20px; text-align: center; color: #ff6b6b;">无法连接到服务器</div>';
+                }
+            }).finally(() => {
+                // 确保加载状态被隐藏
+                showLoading(false);
+            });
+
+            // 移动端默认折叠侧边栏
+            if (window.innerWidth <= 768 && sidebar) {
+                sidebar.classList.add('collapsed');
+            }
+
+            // 监听屏幕尺寸变化
+            window.addEventListener('resize', () => {
+                if (window.innerWidth <= 768) {
+                    if (sidebar) {
+                        sidebar.classList.add('collapsed');
+                    }
+                }
+            });
+
+        // 编辑功能
+        async function openEditModal() {
+            if (!currentFile) {
+                alert('请先选择一个文件');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/file?key=${encodeURIComponent(currentFile)}`);
+                const data = await response.json();
+
+                document.getElementById('editFileName').textContent = currentFile;
+                document.getElementById('editFileContent').value = data.content;
+                showModal(editModal);
+            } catch (error) {
+                console.error('加载文件内容失败:', error);
+                alert('加载文件内容失败');
+            }
+        }
+
+        async function saveEditedFile() {
+            if (!currentFile) {
+                alert('没有文件可以保存');
+                return;
+            }
+
+            const content = document.getElementById('editFileContent').value;
+            const encoding = encodingSelect.value;
+
+            showLoading(true);
+            updateStatus('正在保存文件...');
+
+            try {
+                const response = await fetch('/api/save-file', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        key: currentFile,
+                        content: content,
+                        encoding: encoding
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    hideModal(editModal);
+                    updateStatus('文件已保存');
+                    // 重新加载文件内容以显示更改
+                    await loadFileContent(currentFile);
+                } else {
+                    alert('保存失败: ' + (data.error || '未知错误'));
+                }
+            } catch (error) {
+                console.error('保存文件失败:', error);
+                alert('保存文件失败: ' + String(error));
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // 编辑模态框事件监听
+        const cancelEditBtn = document.getElementById('cancelEditBtn');
+        const confirmEditBtn = document.getElementById('confirmEditBtn');
+        if (cancelEditBtn) {
+            cancelEditBtn.addEventListener('click', () => hideModal(editModal));
+        }
+        if (confirmEditBtn) {
+            confirmEditBtn.addEventListener('click', saveEditedFile);
+        }
+
+        // 支持快捷键
+        document.addEventListener('keydown', (e) => {
+            // Ctrl+S: 保存
+            if (e.ctrlKey && e.key === 's') {
+                e.preventDefault();
+                if (editModal && editModal.classList.contains('show')) {
+                    saveEditedFile();
+                } else if (saveBtn && !saveBtn.disabled) {
+                    savePvfFile();
+                }
+            }
+            
+            // Ctrl+F: 搜索
+            if (e.ctrlKey && e.key === 'f') {
+                e.preventDefault();
+                if (searchModal && !searchModal.classList.contains('show')) {
+                    showModal(searchModal);
+                    const searchKeywordInput = document.getElementById('searchKeywordInput');
+                    if (searchKeywordInput) {
+                        searchKeywordInput.focus();
+                    }
+                }
+            }
+            
+            // Ctrl+B: 批量模式切换
+            if (e.ctrlKey && e.key === 'b') {
+                e.preventDefault();
+                if (batchModeBtn) {
+                    batchModeBtn.click();
+                }
+            }
+            
+            // Ctrl+E: 编辑当前文件
+            if (e.ctrlKey && e.key === 'e') {
+                e.preventDefault();
+                if (editBtn && !editBtn.disabled && editModal && !editModal.classList.contains('show')) {
+                    openEditModal();
+                }
+            }
+            
+            // Escape: 关闭模态框
+            if (e.key === 'Escape') {
+                const modals = document.querySelectorAll('.modal.show');
+                modals.forEach(modal => {
+                    hideModal(modal);
+                });
+            }
+            
+            // Ctrl+O: 打开文件
+            if (e.ctrlKey && e.key === 'o') {
+                e.preventDefault();
+                if (openModal && !openModal.classList.contains('show')) {
+                    showModal(openModal);
+                    const filePathInput = document.getElementById('filePathInput');
+                    if (filePathInput) {
+                        filePathInput.focus();
+                    }
+                }
+            }
+        });
+
+        // 批量操作功能
+        if (batchModeBtn) {
+            batchModeBtn.addEventListener('click', () => {
+                batchMode = !batchMode;
+                batchModeBtn.textContent = batchMode ? '退出批量' : '批量';
+                batchModeBtn.style.background = batchMode ? '#007acc' : '#3c3c3c';
+                
+                if (batchMode && batchActions) {
+                    batchActions.classList.add('show');
+                } else {
+                    if (batchActions) {
+                        batchActions.classList.remove('show');
+                    }
+                    clearSelection();
+                }
+                
+                // 重新加载当前目录以显示/隐藏复选框
+                loadFiles(currentPath);
+            });
+        }
+
+        function clearSelection() {
+            selectedFiles.clear();
+            updateBatchUI();
+            
+            // 清除所有复选框
+            if (fileTree) {
+                fileTree.querySelectorAll('.checkbox input[type="checkbox"]').forEach(cb => {
+                    cb.checked = false;
+                });
+            }
+        }
+
+        function updateBatchUI() {
+            const count = selectedFiles.size;
+            const selectedCountEl = document.getElementById('selectedCount');
+            if (selectedCountEl) {
+                selectedCountEl.textContent = count;
+            }
+            
+            if (count > 0 && batchActions) {
+                batchActions.classList.add('show');
+            } else if (!batchMode && batchActions) {
+                batchActions.classList.remove('show');
+            }
+        }
+
+        // 监听复选框变化
+        if (fileTree) {
+            fileTree.addEventListener('change', (e) => {
+                if (e.target.type === 'checkbox' && e.target.dataset.key) {
+                    const key = e.target.dataset.key;
+                    if (e.target.checked) {
+                        selectedFiles.add(key);
+                    } else {
+                        selectedFiles.delete(key);
+                    }
+                    updateBatchUI();
+                }
+            });
+        }
+
+        // 清除选择按钮
+        const clearSelectionBtn = document.getElementById('clearSelectionBtn');
+        if (clearSelectionBtn) {
+            clearSelectionBtn.addEventListener('click', clearSelection);
+        }
+
+        // 批量提取功能
+        const batchExtractBtn = document.getElementById('batchExtractBtn');
+        if (batchExtractBtn) {
+            batchExtractBtn.addEventListener('click', () => {
+                if (selectedFiles.size === 0) {
+                    alert('请先选择要提取的文件');
+                    return;
+                }
+                
+                const batchExtractCount = document.getElementById('batchExtractCount');
+                if (batchExtractCount) {
+                    batchExtractCount.textContent = selectedFiles.size;
+                }
+                showModal(batchExtractModal);
+            });
+        }
+
+        async function performBatchExtract() {
+            const destPath = document.getElementById('batchDestPathInput').value.trim();
+            if (!destPath) {
+                alert('请输入目标路径');
+                return;
+            }
+
+            showLoading(true);
+            updateStatus(`正在提取 ${selectedFiles.size} 个文件...`);
+
+            try {
+                const response = await fetch('/api/batch-extract', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        keys: Array.from(selectedFiles),
+                        destPath: destPath
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    hideModal(batchExtractModal);
+                    updateStatus(`批量提取完成：成功 ${data.successCount}/${data.total}`);
+                    
+                    if (data.successCount < data.total) {
+                        const failed = data.results.filter(r => !r.success);
+                        console.error('部分文件提取失败:', failed);
+                    }
+                } else {
+                    alert('批量提取失败: ' + (data.error || '未知错误'));
+                }
+            } catch (error) {
+                console.error('批量提取失败:', error);
+                alert('批量提取失败: ' + String(error));
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // 批量提取模态框事件监听器
+        const cancelBatchExtractBtn = document.getElementById('cancelBatchExtractBtn');
+        const confirmBatchExtractBtn = document.getElementById('confirmBatchExtractBtn');
+        if (cancelBatchExtractBtn) {
+            cancelBatchExtractBtn.addEventListener('click', () => hideModal(batchExtractModal));
+        }
+        if (confirmBatchExtractBtn) {
+            confirmBatchExtractBtn.addEventListener('click', performBatchExtract);
+        }
+
+        // 书签编辑模态框事件监听器
+        const cancelEditBookmarkBtn = document.getElementById('cancelEditBookmarkBtn');
+        const confirmEditBookmarkBtn = document.getElementById('confirmEditBookmarkBtn');
+        if (cancelEditBookmarkBtn) {
+            cancelEditBookmarkBtn.addEventListener('click', () => hideModal(editBookmarkModal));
+        }
+        if (confirmEditBookmarkBtn) {
+            confirmEditBookmarkBtn.addEventListener('click', saveBookmarkName);
+        }
+
+        // 书签功能
+        function addBookmark() {
+            if (!currentFile) {
+                alert('请先选择一个文件');
+                return;
+            }
+
+            // 检查是否已经存在
+            const exists = bookmarks.some(b => b.key === currentFile);
+            if (exists) {
+                alert('该书签已存在');
+                return;
+            }
+
+            const fileName = currentFile.split('/').pop();
+            const bookmark = {
+                key: currentFile,
+                name: fileName,
+                addedAt: new Date().toISOString()
+            };
+
+            bookmarks.push(bookmark);
+            saveBookmarks();
+            updateStatus('已添加书签: ' + fileName);
+        }
+
+        function removeBookmark(key) {
+            bookmarks = bookmarks.filter(b => b.key !== key);
+            saveBookmarks();
+            renderBookmarks();
+            updateStatus('已删除书签');
+        }
+
+        function editBookmark(key) {
+            const bookmark = bookmarks.find(b => b.key === key);
+            if (!bookmark) return;
+
+            document.getElementById('editBookmarkPath').textContent = bookmark.key;
+            document.getElementById('editBookmarkName').value = bookmark.name;
+            document.getElementById('editBookmarkName').dataset.key = key;
+
+            showModal(editBookmarkModal);
+        }
+
+        function saveBookmarkName() {
+            const input = document.getElementById('editBookmarkName');
+            const key = input.dataset.key;
+            const newName = input.value.trim();
+
+            if (!newName) {
+                alert('别名不能为空');
+                return;
+            }
+
+            const bookmark = bookmarks.find(b => b.key === key);
+            if (bookmark) {
+                bookmark.name = newName;
+                saveBookmarks();
+                renderBookmarks();
+                updateStatus('书签别名已更新');
+            }
+
+            hideModal(editBookmarkModal);
+        }
+
+        // 添加书签按钮事件监听器
+        if (addBookmarkBtn) {
+            addBookmarkBtn.addEventListener('click', addBookmark);
+        }
+
+        // 页面加载完成后加载书签、PVF 文件列表和文件树
+        window.addEventListener('load', async () => {
+            console.log('Window loaded, starting initialization...');
+
+            // 检查关键DOM元素是否存在
+            if (!fileTree) {
+                console.error('fileTree element not found!');
+                alert('页面初始化失败，请刷新页面重试');
+                return;
+            }
+
+            console.log('DOM elements initialized successfully');
+
+            // 加载书签和PVF文件列表
+            await Promise.all([
+                loadBookmarks(),
+                loadPvfFiles()
+            ]);
+
+            // 直接加载文件列表
+            loadFiles();
+
+            // 调试：检查书签菜单内容
+            setTimeout(() => {
+                const bookmarkMenu = document.getElementById('bookmarkMenu');
+                const pvfFileMenu = document.getElementById('pvfFileMenu');
+                console.log('Bookmark menu HTML:', bookmarkMenu?.innerHTML);
+                console.log('PVF file menu HTML:', pvfFileMenu?.innerHTML);
+                console.log('Bookmarks count:', bookmarks.length);
+            }, 1000);
+        });
+
+        // 检查服务器是否准备好并加载文件列表
+        async function checkAndLoadFiles(retryCount = 0) {
+            console.log('checkAndLoadFiles called, retryCount:', retryCount);
+            console.log('fileTree element:', fileTree);
+
+            try {
+                console.log('Fetching /api/files?path=');
+                const response = await fetch('/api/files?path=');
+                console.log('Response status:', response.status);
+
+                const data = await response.json();
+                console.log('Response data:', data);
+
+                if (data.error) {
+                    console.log('PVF文件尚未打开，等待中...');
+                    fileTree.innerHTML = `<div style="padding: 20px; text-align: center; color: #858585;">正在加载PVF文件... (${retryCount + 1}s)</div>`;
+                    if (retryCount < 30) { // 最多等待30秒
+                        setTimeout(() => checkAndLoadFiles(retryCount + 1), 1000);
+                    } else {
+                        fileTree.innerHTML = '<div style="padding: 20px; text-align: center; color: #ff6b6b;">加载超时，请刷新页面重试</div>';
+                    }
+                } else {
+                    // PVF已准备好，直接渲染文件列表
+                    console.log('PVF已准备好，渲染文件列表');
+                    console.log('Files count:', data.files?.length);
+                    currentPath = '';
+                    currentFile = null;
+                    updateBreadcrumb('');
+                    renderFileTree(data.files, '');
+                }
+            } catch (error) {
+                console.error('服务器尚未准备好，等待中... 错误:', error);
+                fileTree.innerHTML = `<div style="padding: 20px; text-align: center; color: #858585;">正在连接服务器... (${retryCount + 1}s)</div>`;
+                if (retryCount < 30) {
+                    setTimeout(() => checkAndLoadFiles(retryCount + 1), 1000);
+                } else {
+                    fileTree.innerHTML = '<div style="padding: 20px; text-align: center; color: #ff6b6b;">无法连接到服务器</div>';
+                }
+            }
+        }
+
+        // 鼠标悬停时更新书签菜单
+        const menuItems = document.querySelectorAll('.menu-item');
+        if (menuItems.length > 1) {
+            menuItems[1].addEventListener('mouseenter', () => {
+                // 先关闭所有其他菜单
+                document.querySelectorAll('.menu-dropdown').forEach(dropdown => {
+                    if (dropdown.id !== 'bookmarkMenu') {
+                        dropdown.classList.remove('show');
+                    }
+                });
+                renderBookmarks();
+            });
+        }
+
+        // 鼠标悬停时更新文件菜单
+        const fileMenu = document.getElementById('fileMenu');
+        if (fileMenu) {
+            fileMenu.addEventListener('mouseenter', () => {
+                // 先关闭所有其他菜单
+                document.querySelectorAll('.menu-dropdown').forEach(dropdown => {
+                    if (dropdown.id !== 'pvfFileMenu') {
+                        dropdown.classList.remove('show');
+                    }
+                });
+                loadPvfFiles();
+            });
+        }
+
+        // 点击切换文件菜单显示（移动端支持）
+        if (fileMenu) {
+            fileMenu.addEventListener('click', (e) => {
+                // 如果点击的是菜单项本身，而不是下拉菜单中的项目，则切换显示
+                if (e.target.closest('.menu-dropdown-item')) {
+                    return; // 让下拉菜单项的点击事件处理
+                }
+                e.stopPropagation();
+                e.preventDefault();
+                
+                // 先关闭所有其他菜单
+                document.querySelectorAll('.menu-dropdown').forEach(dropdown => {
+                    if (dropdown.id !== 'pvfFileMenu') {
+                        dropdown.classList.remove('show');
+                    }
+                });
+                
+                const dropdown = document.getElementById('pvfFileMenu');
+                if (dropdown) {
+                    dropdown.classList.toggle('show');
+                    loadPvfFiles();
+                }
+            });
+        }
+
+        // 点击切换书签菜单显示（移动端支持）
+        if (menuItems.length > 1) {
+            menuItems[1].addEventListener('click', (e) => {
+                e.stopPropagation();
+                
+                // 先关闭所有其他菜单
+                document.querySelectorAll('.menu-dropdown').forEach(dropdown => {
+                    if (dropdown.id !== 'bookmarkMenu') {
+                        dropdown.classList.remove('show');
+                    }
+                });
+                
+                const dropdown = document.getElementById('bookmarkMenu');
+                if (dropdown) {
+                    dropdown.classList.toggle('show');
+                    renderBookmarks();
+                }
+            });
+        }
+
+        // 点击其他地方关闭菜单
+        document.addEventListener('click', () => {
+            document.querySelectorAll('.menu-dropdown').forEach(dropdown => {
+                dropdown.classList.remove('show');
+            });
+        });
+        }); // 关闭 DOMContentLoaded
+
+        // 移除backBtn相关的代码（因为已删除backBtn）
+        // backBtn.style.display = 'flex'; // 已删除
+    </script>
+</body>
+</html>

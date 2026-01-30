@@ -1,0 +1,79 @@
+[
+  {
+    "key": "equipment/equipment.lst",
+    "name": "装备.equ"
+  },
+  {
+    "key": "stackable/Stackable.lst",
+    "name": "道具.stk"
+  },
+  {
+    "key": "etc/newcashshop.etc",
+    "name": "商城"
+  },
+  {
+    "key": "Dungeon/Dungeon.lst",
+    "name": "副本.dgn"
+  },
+  {
+    "key": "map/map.lst",
+    "name": "地图.map"
+  },
+  {
+    "key": "Monster/Monster.lst",
+    "name": "怪物.mob"
+  },
+  {
+    "key": "passiveObject/passiveObject.lst",
+    "name": "特效.obj"
+  },
+  {
+    "key": "npc/npc.lst",
+    "name": "NPC.npc"
+  },
+  {
+    "key": "n_quest/quest.lst",
+    "name": "任务.qst"
+  },
+  {
+    "key": "itemshop/itemshop.lst",
+    "name": "商店.shp"
+  },
+  {
+    "key": "creature/creature.lst",
+    "name": "宠物.cre"
+  },
+  {
+    "key": "appendage/appendage.lst",
+    "name": "APD.apd"
+  },
+  {
+    "key": "town/town.lst",
+    "name": "城镇.twn"
+  },
+  {
+    "key": "region/region.lst",
+    "name": "区域.rgn"
+  },
+  {
+    "key": "worldmap/worldmap.lst",
+    "name": "副本接口.wdm"
+  },
+  {
+    "key": "aicharacter/aicharacter.lst",
+    "name": "人偶.aic"
+  },
+  {
+    "key": "etc/disjoint.etc",
+    "name": "etc分解"
+  },
+  {
+    "key": "clientonly/cancelskilllist.co",
+    "name": "技能表"
+  },
+  {
+    "key": "sqr/loadstate.nut",
+    "name": "脚本入口",
+    "addedAt": "2026-01-27T16:30:23.324Z"
+  }
+]

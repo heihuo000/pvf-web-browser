@@ -1,0 +1,113 @@
+/* PVF Web Browser 自定义 Prism 配色方案 */
+
+/* 整体代码背景 */
+pre, code {
+    background: #1e1e2e !important;
+    color: #d4d4d4 !important;
+}
+
+/* 字符串 - 橙红色 */
+.token.string {
+    color: #ce9178 !important;
+}
+
+/* 注释 - 灰绿色 */
+.token.comment {
+    color: #6a9955 !important;
+}
+
+/* 标签名 - 青蓝色 */
+.token.tag {
+    color: #569cd6 !important;
+}
+
+/* 数字 - 黄色 */
+.token.number {
+    color: #d7ba7d !important;
+}
+
+/* 关键字 - 紫色 */
+.token.keyword {
+    color: #c586c0 !important;
+}
+
+/* 操作符 - 白色 */
+.token.operator {
+    color: #d4d4d4 !important;
+}
+
+/* 函数名 - 蓝色 */
+.token.function {
+    color: #4ec9b0 !important;
+}
+
+/* 类名 - 黄绿色 */
+.token.class-name {
+    color: #4ec9b0 !important;
+}
+
+/* 属性名 - 蓝色 */
+.token.attr-name {
+    color: #9cdcfe !important;
+}
+
+/* 属性值 - 橙色 */
+.token.attr-value {
+    color: #ce9178 !important;
+}
+
+/* 标点符号 - 灰色 */
+.token.punctuation {
+    color: #d4d4d4 !important;
+}
+
+/* 布尔值 - 蓝色 */
+.token.boolean {
+    color: #569cd6 !important;
+}
+
+/* 变量名 - 浅青色 */
+.token.variable {
+    color: #9cdcfe !important;
+}
+
+/* 正则表达式 - 橙红色 */
+.token.regex {
+    color: #ce9178 !important;
+}
+
+/* 字符串中的转义字符 */
+.token.string .token.escape {
+    color: #ce9178 !important;
+}
+
+/* 自定义：路径链接 */
+.path-link {
+    color: #9cdcfe !important;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.path-link:hover {
+    color: #4ec9b0 !important;
+}
+
+/* 自定义：标签名 */
+.tag-name {
+    color: #569cd6 !important;
+    font-weight: bold;
+}
+
+/* 自定义：名称预览 */
+.name-preview {
+    color: #808080 !important;
+    font-style: italic;
+    margin-left: 8px;
+}
+
+/* 自定义：值描述 */
+.value-description {
+    color: #808080 !important;
+    font-style: italic;
+    margin-left: 8px;
+}

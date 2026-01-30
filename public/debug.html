@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Debug Test</title>
+</head>
+<body>
+    <h1>Debug Test</h1>
+    <div id="test"></div>
+    <script>
+        console.log('Debug page loaded');
+        
+        fetch('/api/status')
+            .then(res => {
+                console.log('Response status:', res.status);
+                return res.json();
+            })
+            .then(data => {
+                console.log('Status data:', data);
+                document.getElementById('test').innerHTML = JSON.stringify(data, null, 2);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('test').innerHTML = 'Error: ' + error.message;
+            });
+    </script>
+</body>
+</html>

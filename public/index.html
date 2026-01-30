@@ -1,0 +1,1652 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>PVF Web Browser</title>
+    <link href="libs/prism-tomorrow.min.css" rel="stylesheet" />
+    <link href="css/prism-custom.css" rel="stylesheet" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            height: 100vh;
+            height: 100dvh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            scroll-padding-bottom: env(safe-area-inset-bottom, 20px);
+        }
+
+        header {
+            background: #252526;
+            padding: 8px 10px;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            border-bottom: 1px solid #3c3c3c;
+            flex-wrap: wrap;
+        }
+
+        header h1 {
+            font-size: 16px;
+            margin-right: auto;
+            white-space: nowrap;
+        }
+
+        button, input, select {
+            padding: 6px 10px;
+            background: #3c3c3c;
+            border: 1px solid #555;
+            color: #d4d4d4;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        button:hover {
+            background: #4a4a4a;
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        input {
+            cursor: text;
+        }
+
+        /* 移动端优化 */
+        @media (max-width: 768px) {
+            header {
+                padding: 6px 8px;
+                gap: 6px;
+            }
+
+            header h1 {
+                font-size: 14px;
+            }
+
+            button, input, select {
+                padding: 5px 8px;
+                font-size: 13px;
+            }
+
+            /* 隐藏部分按钮，用菜单替代 */
+            .desktop-only {
+                display: none;
+            }
+
+            /* 为浏览器底部菜单栏预留空间 */
+            .file-viewer {
+                padding-bottom: max(env(safe-area-inset-bottom), 40px);
+            }
+        }
+
+        .container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+            position: relative;
+            min-height: 0;
+        }
+
+        .sidebar {
+            width: 280px;
+            background: #252526;
+            border-right: 1px solid #3c3c3c;
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.3s ease;
+            z-index: 100;
+        }
+
+        .sidebar.collapsed {
+            transform: translateX(-100%);
+            position: absolute;
+        }
+
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 90;
+        }
+
+        .sidebar-overlay.show {
+            display: block;
+        }
+
+        .sidebar-header {
+            padding: 10px;
+            background: #2d2d2d;
+            border-bottom: 1px solid #3c3c3c;
+        }
+
+        .sidebar-header input {
+            width: 100%;
+        }
+
+        .sidebar-tabs {
+            display: flex;
+            border-bottom: 1px solid #3c3c3c;
+            background: #2d2d2d;
+        }
+
+        .sidebar-tab {
+            flex: 1;
+            padding: 8px 12px;
+            text-align: center;
+            cursor: pointer;
+            font-size: 13px;
+            color: #858585;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .sidebar-tab:hover {
+            background: #3c3c3c;
+            color: #d4d4d4;
+        }
+
+        .sidebar-tab.active {
+            color: #d4d4d4;
+            border-bottom-color: #007acc;
+            background: #252526;
+        }
+
+        .file-tree {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
+            scroll-padding-bottom: env(safe-area-inset-bottom, 20px);
+        }
+
+        .search-results {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
+            scroll-padding-bottom: env(safe-area-inset-bottom, 20px);
+        }
+
+        .search-results-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1px;
+        }
+
+        .search-result-item {
+            padding: 4px 6px;
+            cursor: pointer;
+            border-bottom: 1px solid #2d2d2d;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            min-height: 28px;
+            transition: background 0.15s ease;
+        }
+
+        .search-result-item:hover {
+            background: #2a2d2e;
+        }
+
+        .search-result-item:active {
+            background: #3a3d3e;
+        }
+
+        .result-index {
+            width: auto;
+            font-size: 11px;
+            color: #858585;
+            text-align: left;
+            font-family: 'Consolas', monospace;
+        }
+
+        .result-filename {
+            flex: 0 0 auto;
+            min-width: 100px;
+            max-width: 180px;
+            font-size: 12px;
+            color: #d4d4d4;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            text-align: left;
+        }
+
+        .result-path {
+            flex: 1;
+            font-size: 11px;
+            color: #858585;
+            font-family: 'Consolas', monospace;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+
+        .search-result-match {
+            font-size: 11px;
+            color: #4ec9b0;
+            font-family: 'Consolas', monospace;
+        }
+
+        .file-item {
+            padding: 8px 10px;
+            cursor: pointer;
+            border-radius: 3px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            user-select: none;
+        }
+
+        .file-item:hover {
+            background: #2a2d2e;
+        }
+
+        .file-item.selected {
+            background: #094771;
+            border-left: 3px solid #007acc;
+        }
+
+        .file-item .toggle-icon {
+            width: 16px;
+            text-align: center;
+            font-size: 10px;
+            color: #858585;
+            transition: transform 0.2s;
+        }
+
+        .file-item.folder-item .toggle-icon:hover {
+            color: #d4d4d4;
+        }
+
+        .file-item.back-item {
+            color: #4ec9b0;
+            font-weight: 500;
+        }
+
+        .file-item.back-item:hover {
+            background: #2a2d2e;
+        }
+
+        .folder-children {
+            border-left: 1px solid #3c3c3c;
+            margin-left: 8px;
+        }
+
+        .file-item.folder {
+            font-weight: 500;
+        }
+
+        .file-item .icon {
+            width: 16px;
+            height: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            flex-shrink: 0;
+        }
+
+        .file-item .name {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .file-item .size {
+            font-size: 11px;
+            color: #858585;
+            flex-shrink: 0;
+        }
+
+        .file-item .checkbox {
+            width: 18px;
+            height: 18px;
+            margin-right: 8px;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        .file-item .checkbox input {
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+        }
+
+        .batch-actions {
+            display: none;
+            padding: 8px 12px;
+            background: #2d2d2d;
+            border-bottom: 1px solid #3c3c3c;
+            gap: 8px;
+        }
+
+        .batch-actions.show {
+            display: flex;
+        }
+
+        .batch-actions .selected-count {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            font-size: 13px;
+            color: #d4d4d4;
+        }
+
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            min-width: 0;
+            min-height: 0;
+            position: relative;
+        }
+
+        .content-header {
+            padding: 8px 12px;
+            background: #2d2d2d;
+            border-bottom: 1px solid #3c3c3c;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .content-header .path {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-size: 13px;
+            color: #858585;
+        }
+
+        .content-header .actions {
+            display: flex;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        .toggle-sidebar-btn {
+            display: none;
+            background: #3c3c3c;
+            border: 1px solid #555;
+            color: #d4d4d4;
+            padding: 6px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                position: absolute;
+                left: 0;
+                top: 0;
+                bottom: 0;
+                width: 85%;
+                max-width: 300px;
+                box-shadow: 2px 0 10px rgba(0, 0, 0, 0.3);
+            }
+
+            .toggle-sidebar-btn {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+            .content-header {
+                padding: 6px 10px;
+            }
+
+            .content-header .path {
+                font-size: 12px;
+            }
+
+            .file-item {
+                padding: 10px 8px;
+                font-size: 15px;
+            }
+
+            .file-item .size {
+                font-size: 12px;
+            }
+        }
+
+        .menu-bar {
+            background: #2d2d2d;
+            border-bottom: 1px solid #3c3c3c;
+            padding: 4px 8px;
+            display: flex;
+            gap: 2px;
+            font-size: 13px;
+            transition: height 0.3s ease;
+            overflow: hidden;
+            position: relative;
+            z-index: 100;
+        }
+
+        .menu-bar.collapsed {
+            height: 0;
+            padding: 0;
+            border-bottom: none;
+        }
+
+        .menu-item {
+            padding: 4px 12px;
+            cursor: pointer;
+            border-radius: 2px;
+            position: relative;
+        }
+
+        .menu-item:hover {
+            background: #3c3c3c;
+        }
+
+        .menu-dropdown {
+            display: none;
+            position: fixed;
+            min-width: 250px;
+            max-height: 400px;
+            overflow-y: auto;
+            z-index: 150;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+            background: #252526;
+            border: 1px solid #3c3c3c;
+        }
+
+        .menu-dropdown.show {
+    display: block;
+        }
+
+        /* 移除自动hover显示，使用JavaScript控制 */
+
+        .menu-dropdown-item {
+            padding: 8px 16px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .menu-dropdown-item:hover {
+            background: #3c3c3c;
+        }
+
+        .menu-dropdown-item .shortcut {
+            color: #858585;
+            font-size: 11px;
+        }
+
+        .menu-dropdown-item .delete-btn {
+            padding: 2px 6px;
+            font-size: 10px;
+            background: #3c3c3c;
+            border: 1px solid #555;
+            color: #d4d4d4;
+            border-radius: 2px;
+            margin-left: 8px;
+        }
+
+        .menu-dropdown-item .delete-btn:hover {
+            background: #4a4a4a;
+        }
+
+        .menu-dropdown-divider {
+            border-top: 1px solid #3c3c3c;
+            margin: 4px 0;
+        }
+
+        .menu-dropdown-empty {
+            padding: 12px 16px;
+            color: #858585;
+            font-size: 12px;
+            text-align: center;
+        }
+
+        .toolbar {
+            background: #2d2d2d;
+            border-bottom: 1px solid #3c3c3c;
+            padding: 6px 12px;
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            flex-wrap: wrap;
+            transition: height 0.3s ease;
+            overflow: hidden;
+        }
+
+        .toolbar.collapsed {
+            height: 0;
+            padding: 0;
+            border-bottom: none;
+        }
+
+        .toolbar-group {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            padding-right: 12px;
+            border-right: 1px solid #3c3c3c;
+        }
+
+        .toolbar-group:last-child {
+            border-right: none;
+        }
+
+        .toolbar-separator {
+            width: 1px;
+            height: 20px;
+            background: #3c3c3c;
+            margin: 0 4px;
+        }
+
+        .toolbar label {
+            font-size: 12px;
+            color: #858585;
+            margin-right: 4px;
+        }
+
+        .toggle-controls {
+            background: #2d2d2d;
+            border-bottom: 1px solid #3c3c3c;
+            padding: 4px 8px;
+            display: flex;
+            gap: 4px;
+            justify-content: flex-end;
+        }
+
+        .toggle-controls .toggle-toolbar-btn {
+            margin-left: 0;
+            font-size: 12px;
+            padding: 3px 8px;
+        }
+
+        .toggle-toolbar-btn {
+            background: #3c3c3c;
+            border: 1px solid #555;
+            color: #d4d4d4;
+            padding: 4px 8px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-left: auto;
+        }
+
+        .toggle-toolbar-btn:hover {
+            background: #4a4a4a;
+        }
+
+        @media (max-width: 768px) {
+            .menu-bar {
+                font-size: 12px;
+            }
+
+            .menu-item {
+                padding: 4px 8px;
+            }
+
+            .toolbar {
+                padding: 4px 8px;
+            }
+
+            .toolbar-group {
+                padding-right: 6px;
+            }
+
+            .toolbar label {
+                display: none;
+            }
+        }
+
+        /* 标签页栏 */
+        .tabs-bar {
+            background: #252526;
+            border-bottom: 1px solid #3c3c3c;
+            min-height: 35px;
+            display: flex;
+            align-items: center;
+            overflow-x: auto;
+            overflow-y: hidden;
+        }
+
+        .tabs-container {
+            display: flex;
+            gap: 2px;
+            padding: 0 8px;
+        }
+
+        .tab {
+            display: flex;
+            align-items: center;
+            padding: 6px 12px;
+            background: #2d2d2d;
+            border: 1px solid #3c3c3c;
+            border-bottom: none;
+            border-radius: 4px 4px 0 0;
+            cursor: pointer;
+            min-width: 100px;
+            max-width: 200px;
+            user-select: none;
+            transition: background 0.2s;
+        }
+
+        .tab:hover {
+            background: #3c3c3c;
+        }
+
+        .tab.active {
+            background: #1e1e1e;
+            border-bottom: 1px solid #1e1e1e;
+        }
+
+        .tab-title {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-size: 13px;
+        }
+
+        .tab-close {
+            margin-left: 8px;
+            width: 16px;
+            height: 16px;
+            border-radius: 3px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            color: #858585;
+        }
+
+        .tab-close:hover {
+            background: #505050;
+            color: #d4d4d4;
+        }
+
+        /* 可点击的路径链接 */
+        .path-link {
+            color: #4ec9b0;
+            text-decoration: underline;
+            cursor: pointer;
+            padding: 0 2px;
+            border-radius: 2px;
+            pointer-events: auto;
+        }
+
+        .path-link:hover {
+            background: rgba(78, 201, 176, 0.1);
+        }
+
+        /* 标签样式 */
+        .tag-name {
+            color: #4ec9b0;
+            font-weight: bold;
+            cursor: default;
+            padding: 0 2px;
+            border-radius: 2px;
+        }
+
+        .file-viewer {
+            flex: 1;
+            overflow: hidden;
+            padding: 0;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+
+        /* 移动端底部安全区域适配 */
+        @media (max-width: 768px) {
+            .file-viewer {
+                padding-bottom: env(safe-area-inset-bottom, 20px);
+            }
+        }
+
+        /* 虚拟滚动容器 */
+        .virtual-scroll-container {
+            position: relative;
+            height: 100%;
+            width: 100%;
+            overflow-x: auto;
+            overflow-y: scroll;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 12px;
+            line-height: 1.6;
+            -webkit-overflow-scrolling: touch;
+            flex: 1;
+            min-height: 0;
+        }
+
+        .virtual-scroll-content {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            pointer-events: none;
+        }
+
+        .virtual-scroll-viewport {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            pointer-events: none;
+        }
+
+        /* 行号和代码的包装容器 - 现在应用于每一行 */
+        .code-with-lines {
+            display: grid;
+            grid-template-columns: 35px 1fr; /* 35px给行号，剩余给内容 */
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 12px;
+            line-height: 1.6;
+        }
+
+        /* 行号 */
+        .line-number {
+            height: 19.2px;
+            line-height: 19.2px;
+            text-align: right;
+            color: #858585;
+            user-select: none;
+            padding: 0 2px 0 0; /* 只保留右侧2px，左侧0，让数字紧贴右边 */
+            box-sizing: border-box;
+            border-right: 0.5px solid #3c3c3c;
+            background: #1e1e1e;
+            font-size: 12px;
+            font-weight: normal;
+            font-family: 'Consolas', 'Monaco', monospace;
+            white-space: nowrap;
+        }
+        
+        /* 代码行 */
+        .code-line {
+            height: 19.2px;
+            line-height: 19.2px;
+            white-space: nowrap;
+            padding: 0 2px;
+            box-sizing: border-box;
+            font-size: 12px;
+            font-weight: normal;
+            font-family: 'Consolas', 'Monaco', monospace;
+        }
+
+        .file-viewer pre {
+            background: #1e1e1e;
+            padding: 12px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 12px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            margin: 0;
+            /* 显示空白字符 */
+            white-space: pre-wrap;
+        }
+
+        /* 显示空白字符的样式 */
+        .show-whitespace {
+            white-space: pre-wrap !important;
+        }
+
+        .show-whitespace code {
+            white-space: pre-wrap !important;
+        }
+
+        /* 空白字符显示样式 */
+        .whitespace-tab {
+            color: #808080;
+            opacity: 0.5;
+            display: inline-block;
+            margin-right: 2px;
+        }
+
+        .whitespace-space {
+            color: #808080;
+            opacity: 0.5;
+            font-size: 0.8em;
+        }
+
+        /* 换行符显示 */
+        .show-whitespace .token.whitespace-newline {
+            color: #808080;
+            opacity: 0.3;
+        }
+
+        /* PVF 脚本语法高亮（基于 pvfut 源码） */
+        
+        /* 标签/节 [name], [code] 等 */
+        .token.section {
+            color: #569cd6;
+            font-weight: bold;
+        }
+        
+        .token.section .bracket {
+            color: #ffd700;
+        }
+        
+        .token.section .content .keyword {
+            color: #c586c0;
+            font-weight: bold;
+        }
+        
+        /* 字符串 `...` */
+        .token.string {
+            color: #ce9178;
+        }
+        
+        /* 字符串链接 <id::name`文字`> */
+        .token.string-link {
+            color: #4ec9b0;
+            font-style: italic;
+        }
+        
+        .token.string-link .punctuation {
+            color: #569cd6;
+        }
+        
+        .token.string-link .id {
+            color: #b5cea8;
+        }
+        
+        .token.string-link .separator {
+            color: #d4d4d4;
+        }
+        
+        /* 注释 */
+        .token.comment {
+            color: #6a9955;
+            font-style: italic;
+        }
+        
+        /* 数字 */
+        .token.number {
+            color: #b5cea8;
+        }
+        
+        /* 标识符 */
+        .token.identifier {
+            color: #9cdcfe;
+        }
+        
+        /* 运算符 */
+        .token.operator {
+            color: #d4d4d4;
+        }
+        
+        /* 标点符号 */
+        .token.punctuation {
+            color: #d4d4d4;
+        }
+
+        .file-viewer .empty {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #858585;
+            font-size: 14px;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 20px;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: #252526;
+            padding: 20px;
+            border-radius: 8px;
+            min-width: 300px;
+            max-width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            margin-bottom: 15px;
+            font-size: 18px;
+            font-weight: 500;
+        }
+
+        .modal-body {
+            margin-bottom: 15px;
+        }
+
+        .modal-body input {
+            width: 100%;
+            margin-bottom: 10px;
+        }
+
+        .modal-body textarea {
+            width: 100%;
+            min-height: 300px;
+            max-height: 70vh;
+            background: #1e1e1e;
+            border: 1px solid #3c3c3c;
+            color: #d4d4d4;
+            padding: 10px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            resize: vertical;
+        }
+
+        .modal-body textarea:focus {
+            outline: none;
+            border-color: #007acc;
+        }
+
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        @media (max-width: 768px) {
+            .modal-content {
+                padding: 15px;
+                min-width: auto;
+                width: 100%;
+            }
+
+            .modal-header {
+                font-size: 16px;
+                margin-bottom: 12px;
+            }
+
+            .modal-footer {
+                flex-direction: column;
+            }
+
+            .modal-footer button {
+                width: 100%;
+            }
+        }
+
+        .status-bar {
+            padding: 4px 12px;
+            background: #007acc;
+            color: white;
+            font-size: 12px;
+            flex-shrink: 0;
+        }
+
+        .loading {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px 30px;
+            border-radius: 8px;
+            z-index: 1001;
+            font-size: 14px;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        /* 返回按钮 */
+        .back-btn {
+            display: none;
+            background: #3c3c3c;
+            border: 1px solid #555;
+            color: #d4d4d4;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        @media (max-width: 768px) {
+            .back-btn {
+                display: flex;
+                align-items: center;
+                gap: 4px;
+            }
+        }
+
+        /* 高级搜索对话框样式 */
+        .search-modal-content {
+            max-width: 550px;
+            background: linear-gradient(135deg, #2a2a2e 0%, #252526 100%);
+            border: 1px solid #3c3c3c;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        }
+
+        .search-field-group {
+            margin-bottom: 20px;
+        }
+
+        .search-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            color: #d4d4d4;
+        }
+
+        .search-icon {
+            font-size: 16px;
+        }
+
+        .search-select,
+        .search-input {
+            width: 100%;
+            padding: 10px 12px;
+            background: #1e1e1e;
+            border: 1px solid #3c3c3c;
+            border-radius: 6px;
+            color: #d4d4d4;
+            font-size: 14px;
+            transition: all 0.2s ease;
+        }
+
+        .search-select:focus,
+        .search-input:focus {
+            outline: none;
+            border-color: #007acc;
+            box-shadow: 0 0 0 3px rgba(0, 122, 204, 0.1);
+        }
+
+        .search-input::placeholder {
+            color: #858585;
+        }
+
+        .search-options-group {
+            margin-top: 24px;
+            padding: 16px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            border: 1px solid #3c3c3c;
+        }
+
+        .search-section-label {
+            display: block;
+            margin-bottom: 12px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #858585;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .search-checkbox-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 12px;
+        }
+
+        .search-checkbox-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            background: #2d2d32;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            user-select: none;
+        }
+
+        .search-checkbox-label:hover {
+            background: #38383d;
+            transform: translateY(-1px);
+        }
+
+        .search-checkbox-label input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            accent-color: #007acc;
+        }
+
+        .checkbox-text {
+            font-size: 13px;
+            color: #d4d4d4;
+        }
+
+        .search-footer {
+            padding-top: 20px;
+            border-top: 1px solid #3c3c3c;
+        }
+
+        .search-btn {
+            padding: 10px 24px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: none;
+        }
+
+        .cancel-btn {
+            background: #3c3c3c;
+            color: #d4d4d4;
+        }
+
+        .cancel-btn:hover {
+            background: #4a4a4a;
+        }
+
+        .search-confirm-btn {
+            background: linear-gradient(135deg, #007acc 0%, #005a9e 100%);
+            color: white;
+            box-shadow: 0 2px 8px rgba(0, 122, 204, 0.3);
+        }
+
+        .search-confirm-btn:hover {
+            background: linear-gradient(135deg, #0086e6 0%, #0066b3 100%);
+            box-shadow: 0 4px 12px rgba(0, 122, 204, 0.4);
+            transform: translateY(-1px);
+        }
+
+        .search-confirm-btn:active {
+            transform: translateY(0);
+        }
+
+        /* 名称预览样式 */
+        .name-preview {
+            color: #6a6a6a;
+            font-size: 11px;
+            font-style: italic;
+            opacity: 0.7;
+            user-select: none;
+            margin-left: 8px;
+        }
+
+        /* 移动端优化 */
+        @media (max-width: 768px) {
+            .search-modal-content {
+                max-width: 95%;
+                border-radius: 12px;
+            }
+
+            .search-checkbox-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .search-footer {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .search-btn {
+                width: 100%;
+            }
+        }
+
+        /* 面包屑导航 */
+        .breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            overflow-x: auto;
+            white-space: nowrap;
+            font-size: 12px;
+            color: #858585;
+            flex: 1;
+        }
+
+        .breadcrumb-item {
+            cursor: pointer;
+            padding: 2px 4px;
+            border-radius: 2px;
+        }
+
+        .breadcrumb-item:hover {
+            background: #3c3c3c;
+        }
+
+        .breadcrumb-separator {
+            color: #555;
+        }
+
+        /* 合并的可滚动工具栏 */
+        .toolbar-scrollable {
+            background: #2d2d2d;
+            border-bottom: 1px solid #3c3c3c;
+            padding: 6px 12px;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            overflow-x: auto;
+            overflow-y: hidden;
+            white-space: nowrap;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: thin;
+            scrollbar-color: #555 #2d2d2d;
+        }
+
+        .toolbar-scrollable::-webkit-scrollbar {
+            height: 6px;
+        }
+
+        .toolbar-scrollable::-webkit-scrollbar-track {
+            background: #2d2d2d;
+        }
+
+        .toolbar-scrollable::-webkit-scrollbar-thumb {
+            background-color: #555;
+            border-radius: 3px;
+        }
+
+        .menu-item {
+            flex-shrink: 0;
+        }
+
+        .toolbar-group {
+            flex-shrink: 0;
+        }
+
+        @media (max-width: 768px) {
+            .toolbar-scrollable {
+                padding: 4px 8px;
+                gap: 4px;
+            }
+
+            .breadcrumb {
+                font-size: 11px;
+                gap: 2px;
+            }
+
+            .content-header {
+                padding: 4px 8px;
+                gap: 4px;
+            }
+
+            .content-header .actions {
+                gap: 4px;
+            }
+
+            .content-header .actions button {
+                padding: 4px 6px;
+                font-size: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <button class="toggle-sidebar-btn" id="toggleSidebar">☰</button>
+        <h1>PVF Web Browser</h1>
+        <button id="openBtn" class="desktop-only">打开</button>
+        <button id="saveBtn" disabled class="desktop-only">保存</button>
+    </header>
+
+    <div class="container">
+        <div class="sidebar-overlay" id="sidebarOverlay"></div>
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <input type="text" id="searchInput" placeholder="搜索...">
+            </div>
+            <div class="sidebar-tabs">
+                <div class="sidebar-tab active" data-tab="tree">目录</div>
+                <div class="sidebar-tab" data-tab="search">搜索结果</div>
+            </div>
+            <div class="batch-actions" id="batchActions">
+                <div class="selected-count">已选择 <span id="selectedCount">0</span> 个文件</div>
+                <button id="batchExtractBtn">批量提取</button>
+                <button id="clearSelectionBtn">清除选择</button>
+            </div>
+            <div class="file-tree" id="fileTree">
+                <div style="padding: 20px; text-align: center; color: #858585;">
+                    加载中...
+                </div>
+            </div>
+            <div class="search-results" id="searchResults" style="display: none;">
+                <div style="padding: 20px; text-align: center; color: #858585;">
+                    使用高级搜索功能查找文件
+                </div>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <!-- 合并的工具栏（可横向滚动） -->
+            <div class="toolbar-scrollable" id="toolbarScrollable">
+                <!-- 菜单项 -->
+                <div class="menu-item" id="fileMenu">
+                    文件 ▾
+                    <div class="menu-dropdown" id="pvfFileMenu">
+                        <div class="menu-dropdown-empty">加载中...</div>
+                    </div>
+                </div>
+                <div class="menu-item">
+                    书签 ▾
+                    <div class="menu-dropdown" id="bookmarkMenu">
+                        <div class="menu-dropdown-empty">暂无书签</div>
+                    </div>
+                </div>
+
+                <!-- 功能按钮 -->
+                <div class="toolbar-group">
+                    <button id="addBookmarkBtn" title="添加书签">⭐</button>
+                    <button id="advancedSearchBtn" title="高级搜索">🔍</button>
+                    <button id="editBtn" disabled>编辑</button>
+                    <button id="extractBtn" disabled>提取</button>
+                </div>
+
+                <div class="toolbar-group">
+                    <button id="batchModeBtn">批量</button>
+                    <button id="toggleWhitespaceBtn" title="显示空白字符" style="font-size: 12px;">¶</button>
+                    <button id="toggleTagDescriptionsBtn" title="显示标签注释" style="font-size: 12px;">🏷️</button>
+                </div>
+
+                <!-- 编码选择（放在最后） -->
+                <div class="toolbar-group" style="border-right: none;">
+                    <label>编码:</label>
+                    <select id="encodingSelect">
+                        <option value="AUTO">自动</option>
+                        <option value="KR">韩文</option>
+                        <option value="TW" selected>繁体</option>
+                        <option value="CN">简体</option>
+                        <option value="JP">日文</option>
+                        <option value="UTF8">UTF8</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- 文件路径显示 -->
+            <div class="content-header">
+                <div class="breadcrumb" id="breadcrumb" style="font-family: 'Consolas', monospace; font-size: 12px;">未选择文件</div>
+                <div class="actions">
+                    <button id="copyPathBtn" title="复制文件路径" disabled>📋</button>
+                    <button id="locateDirBtn" title="定位到目录" disabled>📁</button>
+                </div>
+            </div>
+
+            <!-- 标签页栏 -->
+            <div class="tabs-bar" id="tabsBar">
+                <div class="tabs-container" id="tabsContainer">
+                    <!-- 标签页会在这里动态生成 -->
+                </div>
+            </div>
+
+            <div class="file-viewer" id="fileViewer">
+                <div class="empty">选择一个文件查看内容</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="status-bar" id="statusBar">
+        就绪
+    </div>
+
+    <!-- 打开文件对话框 -->
+    <div class="modal" id="openModal">
+        <div class="modal-content">
+            <div class="modal-header">打开 PVF 文件</div>
+            <div class="modal-body">
+                <input type="text" id="filePathInput" placeholder="输入 PVF 文件路径">
+                <div style="font-size: 12px; color: #858585; margin-top: 5px;">
+                    提示: 输入服务器上的绝对路径
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="cancelOpenBtn">取消</button>
+                <button id="confirmOpenBtn">打开</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 高级搜索对话框 -->
+    <div class="modal" id="searchModal">
+        <div class="modal-content search-modal-content">
+            <div class="modal-header">
+                🔍 高级搜索
+            </div>
+            <div class="modal-body">
+                <div class="search-field-group">
+                    <label for="searchTypeSelect" class="search-label">
+                        <span class="search-icon">📁</span>
+                        搜索类型
+                    </label>
+                    <select id="searchTypeSelect" class="search-select">
+                        <option value="filename">文件名</option>
+                        <option value="name">脚本名称</option>
+                        <option value="number">数字</option>
+                        <option value="string">字符串</option>
+                        <option value="content">脚本内容</option>
+                    </select>
+                </div>
+
+                <div class="search-field-group">
+                    <label for="searchKeywordInput" class="search-label">
+                        <span class="search-icon">🔤</span>
+                        搜索关键词
+                    </label>
+                    <input type="text" id="searchKeywordInput" class="search-input" placeholder="输入关键词...">
+                </div>
+
+                <div class="search-options-group">
+                    <label class="search-section-label">搜索选项</label>
+                    <div class="search-checkbox-grid">
+                        <label class="search-checkbox-label">
+                            <input type="checkbox" id="searchStartMatch">
+                            <span class="checkbox-text">开头匹配</span>
+                        </label>
+                        <label class="search-checkbox-label">
+                            <input type="checkbox" id="searchUseRegex">
+                            <span class="checkbox-text">正则表达式</span>
+                        </label>
+                        <label class="search-checkbox-label">
+                            <input type="checkbox" id="searchCaseSensitive">
+                            <span class="checkbox-text">区分大小写</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer search-footer">
+                <button id="cancelSearchBtn" class="search-btn cancel-btn">取消</button>
+                <button id="confirmSearchBtn" class="search-btn search-confirm-btn">
+                    🔍 开始搜索
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 提取文件对话框 -->
+    <div id="extractModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">下载文件</div>
+            <div class="modal-body">
+                <p>当前文件：<span id="extractFileName"></span></p>
+                <p style="color: #858585; font-size: 13px;">点击确认将直接下载文件到您的设备</p>
+            </div>
+            <div class="modal-footer">
+                <button id="cancelExtractBtn">取消</button>
+                <button id="confirmExtractBtn">下载</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 保存文件对话框 -->
+    <div class="modal" id="saveModal">
+        <div class="modal-content">
+            <div class="modal-header">保存 PVF 文件</div>
+            <div class="modal-body">
+                <input type="text" id="savePathInput" placeholder="输入保存路径">
+            </div>
+            <div class="modal-footer">
+                <button id="cancelSaveBtn">取消</button>
+                <button id="confirmSaveBtn">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 编辑文件对话框 -->
+    <div class="modal" id="editModal">
+        <div class="modal-content" style="max-width: 95%;">
+            <div class="modal-header">编辑文件: <span id="editFileName"></span></div>
+            <div class="modal-body">
+                <textarea id="editFileContent" spellcheck="false"></textarea>
+            </div>
+            <div class="modal-footer">
+                <button id="cancelEditBtn">取消</button>
+                <button id="confirmEditBtn">保存到 PVF</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 批量提取对话框 -->
+    <div class="modal" id="batchExtractModal">
+        <div class="modal-content">
+            <div class="modal-header">批量提取文件</div>
+            <div class="modal-body">
+                <p>将提取 <span id="batchExtractCount">0</span> 个文件</p>
+                <div style="margin-bottom: 15px;">
+                    <label>目标路径：</label>
+                    <input type="text" id="batchDestPathInput" style="width: 100%; margin-top: 5px;" placeholder="输入目标路径">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="cancelBatchExtractBtn">取消</button>
+                <button id="confirmBatchExtractBtn">提取</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 编辑书签对话框 -->
+    <div class="modal" id="editBookmarkModal">
+        <div class="modal-content">
+            <div class="modal-header">编辑书签别名</div>
+            <div class="modal-body">
+                <p>文件路径：<span id="editBookmarkPath"></span></p>
+                <div style="margin-bottom: 15px;">
+                    <label>别名：</label>
+                    <input type="text" id="editBookmarkName" style="width: 100%; margin-top: 5px;">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="cancelEditBookmarkBtn">取消</button>
+                <button id="confirmEditBookmarkBtn">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 加载提示 -->
+    <div class="loading" id="loading">处理中...</div>
+
+<!-- 语法高亮 - 本地加载 -->
+    <script>
+        // 本地加载Prism.js
+        function loadPrism() {
+            console.log('Loading Prism.js from local...');
+            const script = document.createElement('script');
+            script.src = 'libs/prism.min.js';
+            script.onload = function() {
+                console.log('Prism.js loaded successfully from local');
+                // 注册PVF语言
+                if (typeof Prism !== 'undefined') {
+                    Prism.languages.pvf = {
+                        'section': { pattern: /\[[^\]]*\]/, greedy: true, inside: {
+                            'punctuation': /\[|\]/,
+                            'keyword': /[^\]\[\s]+/
+                        }},
+                        'string': { pattern: /`(?:\\`|[^`])*`/, greedy: true },
+                        'comment': { pattern: /#.*/, greedy: true },
+                        'number': { pattern: /-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?/, greedy: true },
+                        'operator': /[=+\-*/%<>!&|^~?:,]/,
+                        'identifier': { pattern: /\b[a-zA-Z_][a-zA-Z0-9_]*\b/, greedy: true }
+                    };
+                    
+                    // 注册 Squirrel 语言（.nut 文件）
+                    Prism.languages.squirrel = {
+                        'comment': [
+                            { pattern: /\/\/.*/, greedy: true },
+                            { pattern: /\/\*[\s\S]*?\*\//, greedy: true }
+                        ],
+                        'string': [
+                            { pattern: /'(?:\\'|[^'])*'/, greedy: true },
+                            { pattern: /"(?:\\"|[^"])*"/, greedy: true },
+                            { pattern: /@'(?:\\'|[^'])*'/, greedy: true },
+                            { pattern: /@"(?:\\"|[^"])*"/, greedy: true }
+                        ],
+                        'class-name': {
+                            pattern: /(\bclass\s+)[a-zA-Z_][a-zA-Z0-9_]*/,
+                            lookbehind: true
+                        },
+                        'keyword': /\b(?:local|function|return|if|else|for|while|do|break|continue|switch|case|default|class|extends|constructor|this|static|null|true|false|typeof|instanceof|delete|in|clone|resume|yield|throw|try|catch|finally)\b/,
+                        'boolean': /\b(?:true|false)\b/,
+                        'null': /\bnull\b/,
+                        'number': [
+                            { pattern: /\b0x[0-9a-fA-F]+\b/, greedy: true },
+                            { pattern: /\b\d+(?:\.\d+)?(?:[eE][+-]?\d+)?\b/, greedy: true }
+                        ],
+                        'function': /\b[a-zA-Z_][a-zA-Z0-9_]*\s*\(/,
+                        'operator': /->|\+\+|--|[-+*/%&|^~!=<>]=?|&&|\|\|[?:]/,
+                        'punctuation': /[{}[\](),.;:]/
+                    };
+                    
+                    console.log('PVF and Squirrel languages registered');
+                    
+                    // 如果当前有文件在显示，重新应用高亮
+                    const preElement = document.querySelector('#fileViewer pre');
+                    if (preElement) {
+                        console.log('Re-applying syntax highlighting to current file');
+                        Prism.highlightElement(preElement);
+                    }
+                } else {
+                    console.error('Prism is not defined after loading');
+                }
+            };
+            script.onerror = function() {
+                console.error('Failed to load Prism.js from local file');
+            };
+            document.head.appendChild(script);
+        }
+        // 页面加载完成后再加载Prism
+        window.addEventListener('load', loadPrism);
+    </script>
+    <!-- 使用打包后的 bundle -->
+    <script type="module" src="js/main-bundle.js?v=3.10"></script>
+    <!-- <script src="js/virtual-scroll-test.js"></script> -->
+</body>
+</html>

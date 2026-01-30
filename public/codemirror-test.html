@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CodeMirror Viewer Test</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        header {
+            padding: 10px 20px;
+            background: #252526;
+            border-bottom: 1px solid #3c3c3c;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        h1 {
+            font-size: 18px;
+        }
+        .controls {
+            display: flex;
+            gap: 10px;
+        }
+        button {
+            padding: 5px 10px;
+            background: #3c3c3c;
+            border: 1px solid #555;
+            color: #d4d4d4;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #4c4c4c;
+        }
+        #viewer-container {
+            flex: 1;
+            overflow: hidden;
+        }
+        #status {
+            padding: 5px 10px;
+            background: #2d2d2d;
+            border-top: 1px solid #3c3c3c;
+            font-size: 12px;
+            color: #888;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>CodeMirror Viewer Test</h1>
+        <div class="controls">
+            <button onclick="loadSampleFile()">加载示例文件</button>
+            <button onclick="zoomIn()">放大</button>
+            <button onclick="zoomOut()">缩小</button>
+            <button onclick="resetZoom()">重置</button>
+        </div>
+    </header>
+    <div id="viewer-container"></div>
+    <div id="status">准备就绪</div>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "@codemirror/state": "/node_modules/@codemirror/state/dist/index.js",
+            "@codemirror/view": "/node_modules/@codemirror/view/dist/index.js",
+            "@codemirror/language": "/node_modules/@codemirror/language/dist/index.js",
+            "@codemirror/search": "/node_modules/@codemirror/search/dist/index.js",
+            "@codemirror/commands": "/node_modules/@codemirror/commands/dist/index.js",
+            "@lezer/highlight": "/node_modules/@lezer/highlight/dist/index.js"
+        }
+    }
+    </script>
+
+    <script type="module">
+        console.log('开始加载 CodeMirror Viewer...');
+
+        const container = document.getElementById('viewer-container');
+        const status = document.getElementById('status');
+
+        // 示例文件内容
+        const sampleContent = `# 示例配置文件
+
+[usable job]
+[demonic swordman]
+[fighter]
+[/usable job]
+
+[name]
+技能書 - 綠
+[/name]
+
+[icon]
+'Item/stackable/quest.img' → 525
+[/icon]
+
+[weight]
+50
+[/weight]
+
+[trade]
+true
+[/trade]
+
+# 这是一个注释
+equipment/creature/artifact_n/90000560.equipment`;
+
+        window.loadSampleFile = function() {
+            status.textContent = '显示示例文件...';
+            container.innerHTML = '<pre style="padding: 10px; margin: 0; font-family: Consolas, Monaco, monospace; white-space: pre-wrap; color: #d4d4d4;">' + 
+                sampleContent.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</pre>';
+            status.textContent = '示例文件已加载（简化模式）';
+        };
+
+        window.zoomIn = function() {
+            const pre = container.querySelector('pre');
+            if (pre) {
+                const fontSize = parseFloat(window.getComputedStyle(pre).fontSize);
+                pre.style.fontSize = (fontSize + 2) + 'px';
+                status.textContent = `缩放: ${pre.style.fontSize}`;
+            }
+        };
+
+        window.zoomOut = function() {
+            const pre = container.querySelector('pre');
+            if (pre) {
+                const fontSize = parseFloat(window.getComputedStyle(pre).fontSize);
+                pre.style.fontSize = (fontSize - 2) + 'px';
+                status.textContent = `缩放: ${pre.style.fontSize}`;
+            }
+        };
+
+        window.resetZoom = function() {
+            const pre = container.querySelector('pre');
+            if (pre) {
+                pre.style.fontSize = '14px';
+                status.textContent = '缩放已重置';
+            }
+        };
+
+        // 尝试加载 CodeMirror
+        try {
+            status.textContent = '正在加载 CodeMirror 模块...';
+            
+            // 动态导入 CodeMirror 模块
+            import('/node_modules/@codemirror/state/dist/index.js')
+                .then(({EditorState}) => {
+                    console.log('CodeMirror State 模块加载成功');
+                    status.textContent = 'CodeMirror State 加载成功，正在加载其他模块...';
+                    
+                    return import('/node_modules/@codemirror/view/dist/index.js');
+                })
+                .then(({EditorView}) => {
+                    console.log('CodeMirror View 模块加载成功');
+                    status.textContent = 'CodeMirror 模块加载成功！';
+                })
+                .catch(error => {
+                    console.error('CodeMirror 加载失败:', error);
+                    status.textContent = 'CodeMirror 加载失败，使用简化模式: ' + error.message;
+                    
+                    // 自动加载示例文件
+                    setTimeout(() => {
+                        loadSampleFile();
+                    }, 1000);
+                });
+        } catch (error) {
+            console.error('初始化失败:', error);
+            status.textContent = '初始化失败，使用简化模式';
+            loadSampleFile();
+        }
+    </script>
+</body>
+</html>

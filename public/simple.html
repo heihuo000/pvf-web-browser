@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PVF Browser - Simple</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: sans-serif; padding: 20px; background: #1e1e1e; color: #d4d4d4; }
+        h1 { margin-bottom: 20px; }
+        #fileTree { margin-top: 20px; }
+        .file-item { padding: 10px; border-bottom: 1px solid #3c3c3c; cursor: pointer; }
+        .file-item:hover { background: #2a2d2e; }
+        .folder { color: #4ec9b0; }
+        .file { color: #9cdcfe; }
+    </style>
+</head>
+<body>
+    <h1>PVF Browser - Simple Version</h1>
+    <div id="debug">Loading...</div>
+    <div id="fileTree"></div>
+    
+    <script>
+        const debug = document.getElementById('debug');
+        const fileTree = document.getElementById('fileTree');
+        
+        function log(msg) {
+            debug.innerHTML += '<br>' + msg;
+            console.log(msg);
+        }
+        
+        log('Script loaded');
+        
+        fetch('/api/status')
+            .then(res => {
+                log('Status: ' + res.status);
+                return res.json();
+            })
+            .then(data => {
+                log('Data: ' + JSON.stringify(data));
+                if (data.hasOpenFile) {
+                    return fetch('/api/files?path=');
+                }
+            })
+            .then(res => res ? res.json() : null)
+            .then(data => {
+                if (data && data.files) {
+                    log('Files: ' + data.files.length);
+                    fileTree.innerHTML = data.files.map(f => 
+                        `<div class="file-item ${f.isFile ? 'file' : 'folder'}">${f.isFile ? '📄' : '📁'} ${f.name}</div>`
+                    ).join('');
+                }
+            })
+            .catch(err => {
+                log('Error: ' + err.message);
+            });
+    </script>
+</body>
+</html>
