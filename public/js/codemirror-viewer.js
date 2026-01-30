@@ -283,17 +283,9 @@ function namePreviewPlugin(namePreviewCache, onPathClick) {
   });
 }
 
-// 创建自定义语法高亮样式 - 参考 pvfut 实际显示的配色
-const customHighlightStyle = HighlightStyle.define([
-    { tag: tags.string, color: '#FFA500' }, // 橙色 - 中文说明文字
-    { tag: tags.number, color: '#B5CEA8' }, // 浅绿色 - 数字
-    { tag: tags.tagName, color: '#FF69B4' }, // 亮粉红色 - 标签
-    { tag: tags.variableName, color: '#D4D4D4' }, // 浅灰白 - 标识符/英文值
-    { tag: tags.propertyName, color: '#D4D4D4' }, // 浅灰白
-    { tag: tags.attributeName, color: '#D4D4D4' }, // 浅灰白
-    { tag: tags.url, color: '#FFA500', textDecoration: 'underline' }, // 橙色 - 链接
-    { tag: tags.link, color: '#FFA500', textDecoration: 'underline' }, // 橙色 - 链接
-]);
+// 创建自定义语法高亮样式 - 使用 pvf-language.js 中的定义，这里仅做补充或覆盖
+// 实际上 pvf-language.js 已经包含了完整的配色，这里保留为空或用于非PVF文件
+const customHighlightStyle = HighlightStyle.define([]);
 
 // 空白字符显示插件
 const spaceDeco = Decoration.mark({ class: "cm-show-space" });

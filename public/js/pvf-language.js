@@ -188,7 +188,7 @@ export const pvfLanguage = new StreamLanguage({
             stream.next(); // 跳过 <
             state.inStringLink = true;
             state.inStringLinkQuote = false;
-            return "url";
+            return "special(punctuation)"; // 尖括号用特殊标点样式 (#85A543)
         }
 
         if (state.inStringLink) {
@@ -199,7 +199,7 @@ export const pvfLanguage = new StreamLanguage({
             } else if (stream.peek() === '>' && !state.inStringLinkQuote) {
                 stream.next();
                 state.inStringLink = false;
-                return "url";
+                return "special(punctuation)"; // 尖括号用特殊标点样式 (#85A543)
             } else {
                 stream.next();
                 return "url";

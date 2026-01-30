@@ -25433,7 +25433,7 @@ var pvfLanguage = new StreamLanguage({
       stream.next();
       state.inStringLink = true;
       state.inStringLinkQuote = false;
-      return "url";
+      return "special(punctuation)";
     }
     if (state.inStringLink) {
       if (stream.peek() === "`") {
@@ -25443,7 +25443,7 @@ var pvfLanguage = new StreamLanguage({
       } else if (stream.peek() === ">" && !state.inStringLinkQuote) {
         stream.next();
         state.inStringLink = false;
-        return "url";
+        return "special(punctuation)";
       } else {
         stream.next();
         return "url";
@@ -25699,24 +25699,7 @@ function namePreviewPlugin(namePreviewCache, onPathClick) {
     }
   });
 }
-var customHighlightStyle = HighlightStyle.define([
-  { tag: tags.string, color: "#FFA500" },
-  // 橙色 - 中文说明文字
-  { tag: tags.number, color: "#B5CEA8" },
-  // 浅绿色 - 数字
-  { tag: tags.tagName, color: "#FF69B4" },
-  // 亮粉红色 - 标签
-  { tag: tags.variableName, color: "#D4D4D4" },
-  // 浅灰白 - 标识符/英文值
-  { tag: tags.propertyName, color: "#D4D4D4" },
-  // 浅灰白
-  { tag: tags.attributeName, color: "#D4D4D4" },
-  // 浅灰白
-  { tag: tags.url, color: "#FFA500", textDecoration: "underline" },
-  // 橙色 - 链接
-  { tag: tags.link, color: "#FFA500", textDecoration: "underline" }
-  // 橙色 - 链接
-]);
+var customHighlightStyle = HighlightStyle.define([]);
 var spaceDeco2 = Decoration.mark({ class: "cm-show-space" });
 var tabDeco2 = Decoration.mark({ class: "cm-show-tab" });
 var whitespacePlugin = ViewPlugin.fromClass(class {
