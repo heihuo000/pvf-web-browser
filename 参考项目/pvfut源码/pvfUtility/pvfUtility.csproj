@@ -1,0 +1,603 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="14.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{92AE6A2F-1510-4DDA-ACDD-34FDBA663CE0}</ProjectGuid>
+    <OutputType>WinExe</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>pvfUtility</RootNamespace>
+    <AssemblyName>pvfUtility</AssemblyName>
+    <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+    <AutoGenerateBindingRedirects>false</AutoGenerateBindingRedirects>
+    <TargetFrameworkProfile />
+    <IsWebBootstrapper>false</IsWebBootstrapper>
+    <NuGetPackageImportStamp>
+    </NuGetPackageImportStamp>
+    <PublishUrl>publish\</PublishUrl>
+    <Install>true</Install>
+    <InstallFrom>Disk</InstallFrom>
+    <UpdateEnabled>false</UpdateEnabled>
+    <UpdateMode>Foreground</UpdateMode>
+    <UpdateInterval>7</UpdateInterval>
+    <UpdateIntervalUnits>Days</UpdateIntervalUnits>
+    <UpdatePeriodically>false</UpdatePeriodically>
+    <UpdateRequired>false</UpdateRequired>
+    <MapFileExtensions>true</MapFileExtensions>
+    <ApplicationRevision>0</ApplicationRevision>
+    <ApplicationVersion>1.0.0.%2a</ApplicationVersion>
+    <UseApplicationTrust>false</UseApplicationTrust>
+    <PublishWizardCompleted>true</PublishWizardCompleted>
+    <BootstrapperEnabled>true</BootstrapperEnabled>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <Prefer32Bit>false</Prefer32Bit>
+    <RunCodeAnalysis>false</RunCodeAnalysis>
+    <CodeAnalysisIgnoreGeneratedCode>false</CodeAnalysisIgnoreGeneratedCode>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <Prefer32Bit>false</Prefer32Bit>
+    <RunCodeAnalysis>false</RunCodeAnalysis>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
+    <DebugSymbols>true</DebugSymbols>
+    <OutputPath>bin\x64\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <DebugType>full</DebugType>
+    <PlatformTarget>x64</PlatformTarget>
+    <ErrorReport>prompt</ErrorReport>
+    <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
+    <Prefer32Bit>true</Prefer32Bit>
+    <Optimize>true</Optimize>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
+    <OutputPath>bin\x64\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <Optimize>true</Optimize>
+    <DebugType>pdbonly</DebugType>
+    <PlatformTarget>x64</PlatformTarget>
+    <ErrorReport>prompt</ErrorReport>
+    <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
+    <Prefer32Bit>true</Prefer32Bit>
+  </PropertyGroup>
+  <PropertyGroup>
+    <StartupObject>pvfUtility.Program</StartupObject>
+  </PropertyGroup>
+  <PropertyGroup>
+    <ApplicationIcon>App.ico</ApplicationIcon>
+  </PropertyGroup>
+  <PropertyGroup>
+    <SignManifests>false</SignManifests>
+  </PropertyGroup>
+  <PropertyGroup>
+    <TargetZone>LocalIntranet</TargetZone>
+  </PropertyGroup>
+  <PropertyGroup>
+    <GenerateManifests>false</GenerateManifests>
+  </PropertyGroup>
+  <PropertyGroup>
+    <ApplicationManifest>Properties\app.manifest</ApplicationManifest>
+  </PropertyGroup>
+  <PropertyGroup>
+    <SignAssembly>false</SignAssembly>
+  </PropertyGroup>
+  <PropertyGroup>
+    <AssemblyOriginatorKeyFile>
+    </AssemblyOriginatorKeyFile>
+  </PropertyGroup>
+  <PropertyGroup>
+    <DelaySign>false</DelaySign>
+  </PropertyGroup>
+  <PropertyGroup>
+    <ManifestCertificateThumbprint>BFA785CA2B25765383543009938AB2A7749CB0FC</ManifestCertificateThumbprint>
+  </PropertyGroup>
+  <PropertyGroup>
+    <ManifestKeyFile>pvfUtility_TemporaryKey.pfx</ManifestKeyFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="Microsoft.VisualBasic" />
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.IO" />
+    <Reference Include="System.Linq.Expressions" />
+    <Reference Include="System.Net" />
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.Runtime" />
+    <Reference Include="System.Threading.Tasks" />
+    <Reference Include="System.Xaml" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Action\AppCore.cs" />
+    <Compile Include="Action\Batch\BatchCmd.cs" />
+    <Compile Include="Action\Batch\BatchPresenter.cs" />
+    <Compile Include="Action\Batch\BatchMode.cs" />
+    <Compile Include="Model\Config.cs" />
+    <Compile Include="Dialog\WelcomeDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Dialog\WelcomeDialog.Designer.cs">
+      <DependentUpon>WelcomeDialog.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Dock\ErrorList\ErrorListPresenter.cs" />
+    <Compile Include="Tool\FindReplace\FindReplaceService.cs" />
+    <Compile Include="Tool\FindReplace\FindReplaceDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Tool\FindReplace\FindReplaceDialog.Designer.cs">
+      <DependentUpon>FindReplaceDialog.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Helper\TreeFileHelper.cs" />
+    <Compile Include="Dialog\DialogBase.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Dialog\DialogBase.designer.cs">
+      <DependentUpon>DialogBase.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Dialog\DialogButton.cs" />
+    <Compile Include="Action\Extract\ExtractDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Action\Extract\ExtractDialog.Designer.cs">
+      <DependentUpon>ExtractDialog.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Action\Extract\Extractor.cs" />
+    <Compile Include="Action\Extract\ExtractSetting.cs" />
+    <Compile Include="Helper\DataHelper.cs" />
+    <Compile Include="Helper\PathsHelper.cs" />
+    <Compile Include="Action\Import\ImportDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Action\Import\ImportDialog.Designer.cs">
+      <DependentUpon>ImportDialog.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Action\Import\Importer.cs" />
+    <Compile Include="Action\Import\ImportSetting.cs" />
+    <Compile Include="Interface\IMainPresenter.cs" />
+    <Compile Include="Interface\Presenter\IEditorPresenter.cs" />
+    <Compile Include="Interface\View\IEditor.cs" />
+    <Compile Include="Model\ErrorListItem.cs" />
+    <Compile Include="Model\FileCollectionData.cs" />
+    <Compile Include="Model\PvfOperation\Encoder\BinaryAniCompiler.cs" />
+    <Compile Include="Model\PvfOperation\Encoder\ScriptFileCompiler.cs" />
+    <Compile Include="Model\PvfOperation\Enum.cs" />
+    <Compile Include="Dialog\FileProperties.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Dialog\FileProperties.Designer.cs">
+      <DependentUpon>FileProperties.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Model\PvfOperation\ListFileTable.cs" />
+    <Compile Include="Model\PvfOperation\Praser\PraserInfoProvider.cs" />
+    <Compile Include="Model\PvfOperation\Praser\ScriptFilePraser.cs" />
+    <Compile Include="Model\PvfOperation\Praser\ScriptFileStruct.cs" />
+    <Compile Include="Model\PvfOperation\PvfFile.cs" />
+    <Compile Include="Dialog\PvfHeaderEditorDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Dialog\PvfHeaderEditorDialog.Designer.cs">
+      <DependentUpon>PvfHeaderEditorDialog.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Model\PvfOperation\PvfPack.Base.cs" />
+    <Compile Include="Model\PvfOperation\PvfPack.Core.cs" />
+    <Compile Include="Model\PvfOperation\PvfPack.FileOperation.cs" />
+    <Compile Include="Model\PvfOperation\PvfPack.ScriptFileUtility.cs" />
+    <Compile Include="Model\PvfOperation\Stringtable.cs" />
+    <Compile Include="Model\PvfOperation\StringView.cs" />
+    <Compile Include="Model\TreeFileModel.cs" />
+    <Compile Include="Model\TreeModel\FileCollectionTreeViewModel.cs" />
+    <Compile Include="Model\TreeModel\FileTreeViewModel.cs" />
+    <Compile Include="Model\TreeModel\FileTreeViewNode.cs" />
+    <Compile Include="Model\TreeModel\FolderTreeModel.cs" />
+    <Compile Include="Helper\Native\ChineseHelper.cs" />
+    <Compile Include="Dock\Output\OutputPresenter.cs" />
+    <Compile Include="Document\TextEditor\TextEditorPresenter.cs" />
+    <Compile Include="Service\HttpRestServerService.cs" />
+    <Compile Include="Action\Search\SearchDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Action\Search\SearchDialog.Designer.cs">
+      <DependentUpon>SearchDialog.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Action\Search\SearchMethods.cs" />
+    <Compile Include="Action\Search\SearchPresenter.cs" />
+    <Compile Include="Action\Search\SearchSetting.cs" />
+    <Compile Include="Service\DialogService.cs" />
+    <Compile Include="Service\Logger.cs" />
+    <Compile Include="Service\NavigationServices.cs" />
+    <Compile Include="Service\PackService.cs" />
+    <Compile Include="Tool\NameSearcher.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Tool\NameSearcher.designer.cs">
+      <DependentUpon>NameSearcher.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Document\HexEditorFrom.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Document\HexEditorFrom.Designer.cs">
+      <DependentUpon>HexEditorFrom.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Document\TextEditor\PvfScriptLexerFast.cs" />
+    <Compile Include="Dock\CollectionExplorer\CollectionExplorerPresenter.cs" />
+    <Compile Include="Dialog\GoToFileDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Dialog\GoToFileDialog.Designer.cs">
+      <DependentUpon>GoToFileDialog.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Dock\FileExplorer\FileExplorerPresenter.cs" />
+    <Compile Include="MainPresenter.cs" />
+    <Compile Include="Dialog\SelectFolderDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Dialog\SelectFolderDialog.Designer.cs">
+      <DependentUpon>SelectFolderDialog.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Dock\ErrorList\ErrorListDockView.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Dock\ErrorList\ErrorListDockView.Designer.cs">
+      <DependentUpon>ErrorListDockView.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Tool\CodeSearcher.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Tool\CodeSearcher.Designer.cs">
+      <DependentUpon>CodeSearcher.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Service\FileNameCommentService.cs" />
+    <Compile Include="Properties\lang1.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
+      <DependentUpon>lang.resx</DependentUpon>
+    </Compile>
+    <Compile Include="Dialog\About.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Dialog\About.Designer.cs">
+      <DependentUpon>About.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Action\Batch\BatchTaskDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Action\Batch\BatchTaskDialog.Designer.cs">
+      <DependentUpon>BatchTaskDialog.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Dock\FileExplorer\Bookmark\BookmarkManager.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Dock\FileExplorer\Bookmark\BookmarkManager.Designer.cs">
+      <DependentUpon>BookmarkManager.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Dock\FileExplorer\Bookmark\BookmarkTreeView.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Dock\FileExplorer\Bookmark\NewBookmarkDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Dock\FileExplorer\Bookmark\NewBookmarkDialog.Designer.cs">
+      <DependentUpon>NewBookmarkDialog.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Dialog\DetailInfoDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Dialog\DetailInfoDialog.Designer.cs">
+      <DependentUpon>DetailInfoDialog.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Dialog\FileExistDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Dialog\FileExistDialog.Designer.cs">
+      <DependentUpon>FileExistDialog.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Dialog\InputBox.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Dialog\InputBox.Designer.cs">
+      <DependentUpon>InputBox.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Document\TextEditor\PvfScriptLexer.cs" />
+    <Compile Include="Helper\HttpHelper.cs" />
+    <Compile Include="Document\StartPage.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Document\StartPage.Designer.cs">
+      <DependentUpon>StartPage.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Tool\FindReplace\CharacterRange.cs" />
+    <Compile Include="Tool\FindReplace\GoTo.cs" />
+    <Compile Include="Tool\FindReplace\GoToDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Tool\FindReplace\GoToDialog.Designer.cs">
+      <DependentUpon>GoToDialog.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Dock\FileExplorer\FileExplorerDock.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Dock\FileExplorer\FileExplorerDock.Designer.cs">
+      <DependentUpon>FileExplorerDock.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Dock\Output\OutputDockView.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Dock\Output\OutputDockView.Designer.cs">
+      <DependentUpon>OutputDockView.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Document\PackComparer.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Document\PackComparer.Designer.cs">
+      <DependentUpon>PackComparer.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Dock\CollectionExplorer\CollectionExplorerDock.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Dock\CollectionExplorer\CollectionExplorerDock.Designer.cs">
+      <DependentUpon>CollectionExplorerDock.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Document\TextEditor\TextEditorView.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Document\TextEditor\TextEditorView.Designer.cs">
+      <DependentUpon>TextEditorView.cs</DependentUpon>
+    </Compile>
+    <Compile Include="MainForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="MainForm.Designer.cs">
+      <DependentUpon>MainForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Dialog\OptionForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Dialog\OptionForm.Designer.cs">
+      <DependentUpon>OptionForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Program.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Helper\PvfAlgorithmHelper.cs" />
+    <EmbeddedResource Include="Dialog\DialogBase.resx">
+      <DependentUpon>DialogBase.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Dialog\WelcomeDialog.resx">
+      <DependentUpon>WelcomeDialog.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Tool\FindReplace\FindReplaceDialog.resx">
+      <DependentUpon>FindReplaceDialog.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Action\Extract\ExtractDialog.resx">
+      <DependentUpon>ExtractDialog.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Action\Import\ImportDialog.resx">
+      <DependentUpon>ImportDialog.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Dialog\FileProperties.resx">
+      <DependentUpon>FileProperties.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Dialog\PvfHeaderEditorDialog.resx">
+      <DependentUpon>PvfHeaderEditorDialog.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Action\Search\SearchDialog.resx">
+      <DependentUpon>SearchDialog.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Tool\NameSearcher.resx">
+      <DependentUpon>NameSearcher.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Document\HexEditorFrom.resx">
+      <DependentUpon>HexEditorFrom.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Dock\FileExplorer\Bookmark\BookmarkTreeView.resx">
+      <DependentUpon>BookmarkTreeView.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Dialog\GoToFileDialog.resx">
+      <DependentUpon>GoToFileDialog.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Dialog\SelectFolderDialog.resx">
+      <DependentUpon>SelectFolderDialog.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Dock\ErrorList\ErrorListDockView.resx">
+      <DependentUpon>ErrorListDockView.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Tool\CodeSearcher.resx">
+      <DependentUpon>CodeSearcher.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Properties\lang.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>lang1.Designer.cs</LastGenOutput>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Dialog\About.resx">
+      <DependentUpon>About.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Action\Batch\BatchTaskDialog.resx">
+      <DependentUpon>BatchTaskDialog.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Dock\FileExplorer\Bookmark\BookmarkManager.resx">
+      <DependentUpon>BookmarkManager.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Dock\FileExplorer\Bookmark\NewBookmarkDialog.resx">
+      <DependentUpon>NewBookmarkDialog.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Dialog\DetailInfoDialog.resx">
+      <DependentUpon>DetailInfoDialog.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Dialog\FileExistDialog.resx">
+      <DependentUpon>FileExistDialog.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Dialog\InputBox.resx">
+      <DependentUpon>InputBox.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Document\StartPage.resx">
+      <DependentUpon>StartPage.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Tool\FindReplace\GoToDialog.resx">
+      <DependentUpon>GoToDialog.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Dock\FileExplorer\FileExplorerDock.resx">
+      <DependentUpon>FileExplorerDock.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Dock\Output\OutputDockView.resx">
+      <DependentUpon>OutputDockView.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Document\PackComparer.resx">
+      <DependentUpon>PackComparer.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Dock\CollectionExplorer\CollectionExplorerDock.resx">
+      <DependentUpon>CollectionExplorerDock.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Dialog\OptionForm.resx">
+      <DependentUpon>OptionForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Document\TextEditor\TextEditorView.resx">
+      <DependentUpon>TextEditorView.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="MainForm.resx">
+      <DependentUpon>MainForm.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Properties\Resources.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <Compile Include="Properties\Resources.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Resources.resx</DependentUpon>
+      <DesignTime>True</DesignTime>
+    </Compile>
+    <None Include="Properties\app.manifest" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="App.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <BootstrapperPackage Include=".NETFramework,Version=v4.5">
+      <Visible>False</Visible>
+      <ProductName>Microsoft .NET Framework 4.5 %28x86 和 x64%29</ProductName>
+      <Install>true</Install>
+    </BootstrapperPackage>
+    <BootstrapperPackage Include="Microsoft.Net.Framework.3.5.SP1">
+      <Visible>False</Visible>
+      <ProductName>.NET Framework 3.5 SP1</ProductName>
+      <Install>false</Install>
+    </BootstrapperPackage>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\3rd\7zSupport\SevenZipSharp\SevenZipSharp.csproj">
+      <Project>{4960dd14-3431-47ec-b9d9-9d2730a98dc3}</Project>
+      <Name>SevenZipSharp</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\3rd\Aga.Controls\Aga.Controls.csproj">
+      <Project>{e73bb233-d88b-44a7-a98f-d71ee158381d}</Project>
+      <Name>Aga.Controls</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\3rd\AutoUpdater.NET\AutoUpdater.NET.csproj">
+      <Project>{fb9e7e6b-b19f-4f37-a708-2996190cef13}</Project>
+      <Name>AutoUpdater.NET</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\3rd\Be.HexEditor-master\Be.Windows.Forms.HexBox\Be.Windows.Forms.HexBox.csproj">
+      <Project>{26c5f25f-b450-4caf-ad8b-b8d11ae73457}</Project>
+      <Name>Be.Windows.Forms.HexBox</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\3rd\ScintillaNET-3.6.3\src\ScintillaNET\ScintillaNET.csproj">
+      <Project>{22ae2386-60f1-476e-9303-61cdb0aac4cf}</Project>
+      <Name>ScintillaNET</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\3rd\WindowsAPICodePack\Core\Microsoft.WindowsAPICodePack.csproj">
+      <Project>{2e1fb0df-f9bb-4909-9f32-2d9d022a8e57}</Project>
+      <Name>Microsoft.WindowsAPICodePack</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\3rd\WinFormsUI\ThemeVS2015.csproj">
+      <Project>{007d4ac8-948f-4816-86ad-b9d1343672c1}</Project>
+      <Name>ThemeVS2015</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\3rd\WinFormsUI\WinFormsUI.csproj">
+      <Project>{c75532c4-765b-418e-b09b-46d36b2abdb1}</Project>
+      <Name>WinFormsUI</Name>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="App.ico" />
+    <Content Include="README.txt" />
+    <None Include="Resources\JSScript_16x.png" />
+    <None Include="Resources\Script_16x.png" />
+    <None Include="Resources\BinaryFile_16x.png" />
+    <None Include="Resources\Folder_grey_16x.png" />
+    <None Include="Resources\Settings_16x.png" />
+    <None Include="Resources\SaveClose_16x.png" />
+    <None Include="Resources\RightColumnOfThreeColumns_16x.png" />
+    <None Include="Resources\LeftColumnOfThreeColumns_16x.png" />
+    <None Include="Resources\SaveFileDialogControl_16x.png" />
+    <None Include="Resources\CompareFolder_16x.png" />
+    <None Include="Resources\CollapseGroup_16x.png" />
+    <None Include="Resources\FindinFiles_16x.png" />
+    <None Include="Resources\DeleteKPI_16x.png" />
+    <None Include="Resources\CodeDefinitionWindow_16x.png" />
+    <None Include="Resources\Code_16x.png" />
+    <None Include="Resources\Folder_16x.png" />
+    <None Include="Resources\Document_16x.png" />
+    <None Include="Resources\OpenFolder_32x.png" />
+    <None Include="Resources\DeleteFolder_16x.png" />
+    <None Include="Resources\ClearCollection_16x.png" />
+    <None Include="Resources\StartupProject_16x.png" />
+    <None Include="Resources\Folder_32x.png" />
+    <None Include="Resources\Document_32x.png" />
+    <None Include="Resources\SearchContract_16x.png" />
+    <None Include="Resources\RunChecked_16x.png" />
+    <None Include="Resources\Run_16x.png" />
+    <None Include="Resources\OpenfileDialog_16x.png" />
+    <None Include="Resources\FindResults_16x.png" />
+    <None Include="Resources\DownloadFile_16x.png" />
+    <None Include="Resources\ExportData_16x.png" />
+    <None Include="Resources\ImportFilter_16x.png" />
+    <None Include="Resources\SearchMember_16x.png" />
+    <None Include="Resources\Search_16x.png" />
+    <None Include="Resources\FindSymbol_16x.png" />
+    <None Include="Resources\FindPrevious_16x.png" />
+    <None Include="Resources\FindNext_16x.png" />
+    <None Include="Resources\Upload_16x.png" />
+    <None Include="Resources\Forward_16x.png" />
+    <None Include="Resources\Backward_16x.png" />
+    <None Include="Resources\SelectAll_16x.png" />
+    <None Include="Resources\Paste_16x.png" />
+    <None Include="Resources\Cut_16x.png" />
+    <None Include="Resources\Copy_16x.png" />
+    <None Include="Resources\ImportFile_16x.png" />
+    <None Include="Resources\Refresh_16x.png" />
+    <None Include="Resources\SaveAs_16x.png" />
+    <None Include="Resources\Save_16x.png" />
+    <None Include="Resources\OpenFolder_16x.png" />
+    <None Include="Resources\CloseSolution_16x.png" />
+  </ItemGroup>
+  <ItemGroup />
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
+       Other similar extension points exist, see Microsoft.Common.targets.
+  <Target Name="BeforeBuild">
+  </Target>
+  <Target Name="AfterBuild">
+  </Target>
+  -->
+</Project>

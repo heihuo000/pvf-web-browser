@@ -25433,7 +25433,7 @@ var pvfLanguage = new StreamLanguage({
       stream.next();
       state.inStringLink = true;
       state.inStringLinkQuote = false;
-      return "special(punctuation)";
+      return "specialPunctuation";
     }
     if (state.inStringLink) {
       if (stream.peek() === "`") {
@@ -25443,7 +25443,7 @@ var pvfLanguage = new StreamLanguage({
       } else if (stream.peek() === ">" && !state.inStringLinkQuote) {
         stream.next();
         state.inStringLink = false;
-        return "special(punctuation)";
+        return "specialPunctuation";
       } else {
         stream.next();
         return "url";
