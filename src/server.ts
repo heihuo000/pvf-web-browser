@@ -5,6 +5,21 @@ import * as path from 'path';
 import * as fs from 'fs/promises';
 import * as iconv from 'iconv-lite';
 
+// 带时间戳的日志输出函数
+function log(message: string) {
+  const now = new Date();
+  const timestamp = now.toLocaleString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  });
+  console.log(`[${timestamp}] ${message}`);
+}
+
 // 编码映射：将简写转换为iconv-lite支持的完整编码名称
 function mapEncoding(encoding: string): string {
   const encodingMap: { [key: string]: string } = {
@@ -35,15 +50,15 @@ async function autoOpenPvfFile() {
     
     if (pvfFiles.length > 0) {
       const pvfPath = path.join(projectDir, pvfFiles[0]);
-      console.log(`发现 PVF 文件: ${pvfPath}`);
+      log(`发现 PVF 文件: ${pvfPath}`);
       
       const model = new PvfModel();
       await model.open(pvfPath, (n) => {
-        console.log(`自动加载进度: ${n}%`);
+        log(`自动加载进度: ${n}%`);
       });
       
       currentModel = model;
-      console.log(`✓ 已自动打开 PVF 文件: ${pvfFiles[0]}`);
+      log(`✓ 已自动打开 PVF 文件: ${pvfFiles[0]}`);
       return pvfFiles[0];
     }
   } catch (error) {
@@ -68,7 +83,7 @@ app.post('/api/open', async (req, res) => {
 
     const model = new PvfModel();
     await model.open(filePath, (n) => {
-      console.log(`加载进度: ${n}%`);
+      log(`加载进度: ${n}%`);
     });
 
     currentModel = model;
@@ -211,13 +226,13 @@ app.get('/api/advanced-search', async (req, res) => {
       const scriptExtensions = ['.act', '.ani', '.skl', '.lst', '.str', '.equ', '.stk', '.ai', '.aic', '.key', '.nut', '.als'];
       const scriptFiles = allKeys.filter(key => scriptExtensions.some(ext => key.endsWith(ext)));
       keysToSearch = scriptFiles.slice(0, MAX_FILES_FOR_STRING_SEARCH);
-      console.log(`字符串搜索：限制搜索 ${keysToSearch.length} 个脚本文件（总共 ${scriptFiles.length} 个）`);
+      log(`字符串搜索：限制搜索 ${keysToSearch.length} 个脚本文件（总共 ${scriptFiles.length} 个）`);
     }
 
     for (const key of keysToSearch) {
       // 对于字符串搜索，限制最大结果数以提高性能
       if (type === 'string' && allResults.length >= MAX_STRING_RESULTS) {
-        console.log(`已达到字符串搜索结果数量上限 ${MAX_STRING_RESULTS}，停止搜索`);
+        log(`已达到字符串搜索结果数量上限 ${MAX_STRING_RESULTS}，停止搜索`);
         break;
       }
       const fileName = key.split('/').pop() || key;
@@ -575,7 +590,7 @@ app.post('/api/save', async (req, res) => {
     }
 
     await currentModel.save(filePath, (n) => {
-      console.log(`保存进度: ${n}%`);
+      log(`保存进度: ${n}%`);
     });
 
     res.json({ success: true, message: 'PVF 文件已保存' });
@@ -735,6 +750,41 @@ app.get('/api/status', (req, res) => {
   });
 });
 
+// 保存配色方案到本地配置文件
+app.post('/api/save-colors', async (req, res) => {
+  try {
+    const colors = req.body;
+    const configPath = path.join(process.cwd(), 'color-config.json');
+
+    await fs.writeFile(configPath, JSON.stringify(colors, null, 2), 'utf8');
+
+    log(`✓ 配色方案已保存到: ${configPath}`);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('保存配色失败:', error);
+    res.status(500).json({ error: String(error) });
+  }
+});
+
+// 加载配色方案
+app.get('/api/load-colors', async (req, res) => {
+  try {
+    const configPath = path.join(process.cwd(), 'color-config.json');
+
+    try {
+      const content = await fs.readFile(configPath, 'utf8');
+      const colors = JSON.parse(content);
+      res.json(colors);
+    } catch (fileError) {
+      // 配置文件不存在，返回空对象
+      res.json({});
+    }
+  } catch (error) {
+    console.error('加载配色失败:', error);
+    res.status(500).json({ error: String(error) });
+  }
+});
+
 app.listen(PORT, '0.0.0.0', async () => {
   const os = require('os');
   const interfaces = os.networkInterfaces();
@@ -751,10 +801,10 @@ app.listen(PORT, '0.0.0.0', async () => {
     if (localIP !== 'localhost') break;
   }
   
-  console.log(`PVF Web Browser 服务器运行在:`);
-  console.log(`  - 本地访问: http://localhost:${PORT}`);
-  console.log(`  - 局域网访问: http://${localIP}:${PORT}`);
-  console.log(`项目目录: ${process.cwd()}`);
+  log(`PVF Web Browser 服务器运行在:`);
+  log(`  - 本地访问: http://localhost:${PORT}`);
+  log(`  - 局域网访问: http://${localIP}:${PORT}`);
+  log(`项目目录: ${process.cwd()}`);
   
   // 自动打开项目目录下的 PVF 文件
   await autoOpenPvfFile();

@@ -65,6 +65,7 @@ const elements = {
     toggleTagDescriptionsBtn: document.getElementById('toggleTagDescriptionsBtn'),
     addBookmarkBtn: document.getElementById('addBookmarkBtn'),
     advancedSearchBtn: document.getElementById('advancedSearchBtn'),
+    colorSettingsBtn: document.getElementById('colorSettingsBtn'),
     switchViewerBtn: document.getElementById('switchViewerBtn'),
     encodingSelect: document.getElementById('encodingSelect'),
     searchInput: document.getElementById('searchInput'),
@@ -93,6 +94,7 @@ const editModal = modalManager.register('editModal');
 const batchExtractModal = modalManager.register('batchExtractModal');
 const searchModal = modalManager.register('searchModal');
 const editBookmarkModal = modalManager.register('editBookmarkModal');
+const colorSettingsModal = modalManager.register('colorSettingsModal');
 
 // 更新状态栏
 function updateStatus(message) {
@@ -257,7 +259,7 @@ function renderFileFromCache(key, cached) {
     if (copyPathBtn) copyPathBtn.disabled = false;
     if (locateDirBtn) locateDirBtn.disabled = false;
 
-    const editableExtensions = ['txt', 'nut', 'str', 'lst', 'equ', 'stk', 'ai', 'aic', 'key', 'als', 'act', 'stm', 'ora', 'map'];
+    const editableExtensions = ['txt', 'nut', 'str', 'lst', 'equ', 'stk', 'ai', 'aic', 'key', 'als', 'act', 'stm', 'ora', 'map', 'obj', 'dgn'];
     elements.editBtn.disabled = !editableExtensions.includes(ext);
 
     // 使用查看器管理器
@@ -513,7 +515,7 @@ async function loadFileContent(key) {
         if (copyPathBtn) copyPathBtn.disabled = false;
         if (locateDirBtn) locateDirBtn.disabled = false;
 
-        const editableExtensions = ['txt', 'nut', 'str', 'lst', 'equ', 'stk', 'ai', 'aic', 'key', 'als', 'act'];
+        const editableExtensions = ['txt', 'nut', 'str', 'lst', 'equ', 'stk', 'ai', 'aic', 'key', 'als', 'act', 'stm', 'ora', 'map', 'obj', 'dgn'];
         elements.editBtn.disabled = !editableExtensions.includes(ext);
 
         // 确保 CodeMirror 已初始化
@@ -1226,6 +1228,99 @@ function init() {
             updateStatus(`已切换到 ${newType === 'codemirror' ? 'CodeMirror' : '虚拟滚动'} 查看器`);
         });
     }
+
+    // 配色设置按钮
+    if (elements.colorSettingsBtn) {
+        elements.colorSettingsBtn.addEventListener('click', async () => {
+            console.log('Color settings button clicked');
+            // 动态导入配色模块
+            try {
+                const module = await import('./pvf-language.js');
+                console.log('pvf-language module loaded:', module);
+                const currentColors = await module.getCurrentColors();
+                console.log('Current colors:', currentColors);
+
+                // 填充颜色输入框
+                document.getElementById('color-labelName').value = currentColors.labelName;
+                document.getElementById('color-string').value = currentColors.string;
+                document.getElementById('color-url').value = currentColors.url;
+                document.getElementById('color-number').value = currentColors.number;
+                document.getElementById('color-comment').value = currentColors.comment;
+                document.getElementById('color-variableName').value = currentColors.variableName;
+                document.getElementById('color-operator').value = currentColors.operator;
+                document.getElementById('color-punctuation').value = currentColors.punctuation;
+                document.getElementById('color-constant').value = currentColors.constant;
+                document.getElementById('color-link').value = currentColors.link;
+                document.getElementById('color-text').value = currentColors.text;
+
+                console.log('Showing color settings modal');
+                modalManager.show('colorSettingsModal');
+            } catch (error) {
+                console.error('Failed to load pvf-language module:', error);
+            }
+        });
+    }
+
+    // 恢复默认配色
+    document.getElementById('resetColorsBtn')?.addEventListener('click', () => {
+        import('./pvf-language.js').then((module) => {
+            const defaultColors = module.resetColors();
+
+            // 填充默认颜色
+            document.getElementById('color-labelName').value = defaultColors.labelName;
+            document.getElementById('color-string').value = defaultColors.string;
+            document.getElementById('color-url').value = defaultColors.url;
+            document.getElementById('color-number').value = defaultColors.number;
+            document.getElementById('color-comment').value = defaultColors.comment;
+            document.getElementById('color-variableName').value = defaultColors.variableName;
+            document.getElementById('color-operator').value = defaultColors.operator;
+            document.getElementById('color-punctuation').value = defaultColors.punctuation;
+            document.getElementById('color-constant').value = defaultColors.constant;
+            document.getElementById('color-link').value = defaultColors.link;
+            document.getElementById('color-text').value = defaultColors.text;
+
+            updateStatus('已恢复默认配色');
+        });
+    });
+
+    // 保存配色设置
+    document.getElementById('saveColorSettingsBtn')?.addEventListener('click', async () => {
+        try {
+            const module = await import('./pvf-language.js');
+            const newColors = {
+                labelName: document.getElementById('color-labelName').value,
+                string: document.getElementById('color-string').value,
+                url: document.getElementById('color-url').value,
+                number: document.getElementById('color-number').value,
+                comment: document.getElementById('color-comment').value,
+                variableName: document.getElementById('color-variableName').value,
+                operator: document.getElementById('color-operator').value,
+                punctuation: document.getElementById('color-punctuation').value,
+                constant: document.getElementById('color-constant').value,
+                link: document.getElementById('color-link').value,
+                text: document.getElementById('color-text').value
+            };
+
+            // 保存配色到服务器配置文件
+            await module.saveCustomColors(newColors);
+
+            // 重新加载 CodeMirror 的高亮样式
+            if (viewerManager.currentViewerType === 'codemirror') {
+                await viewerManager.codemirrorViewer.reloadHighlightStyle();
+            }
+
+            updateStatus('配色已应用');
+            modalManager.hide('colorSettingsModal');
+        } catch (error) {
+            console.error('保存配色失败:', error);
+            updateStatus('保存配色失败: ' + error.message);
+        }
+    });
+
+    // 取消配色设置
+    document.getElementById('cancelColorSettingsBtn')?.addEventListener('click', () => {
+        modalManager.hide('colorSettingsModal');
+    });
 
     // 批量模式按钮
     if (elements.batchModeBtn) {

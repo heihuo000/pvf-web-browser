@@ -9,7 +9,8 @@ import { defaultKeymap } from "@codemirror/commands";
 import { searchKeymap, highlightSelectionMatches } from "@codemirror/search";
 import { syntaxHighlighting, defaultHighlightStyle, HighlightStyle } from "@codemirror/language";
 import { tags } from "@lezer/highlight";
-import pvfLanguageSupport from './pvf-language.js';
+import { languages } from "@codemirror/language-data";
+import pvfLanguageSupport, { createHighlightStyle } from './pvf-language.js';
 
 // 用于存储路径和名称映射的缓存
 class NamePreviewCache {
@@ -360,6 +361,11 @@ class CodeMirrorViewer {
         this.languageCompartment = new Compartment();
         this.whitespaceCompartment = new Compartment();
         this.editableCompartment = new Compartment();
+        this.highlightCompartment = new Compartment();
+
+        // 捏合缩放相关
+        this.pinchDistance = 0;
+        this.isPinching = false;
     }
 
     /**
@@ -444,9 +450,8 @@ class CodeMirrorViewer {
             drawSelection(),
             highlightSelectionMatches(),
 
-            // 语法高亮
-            syntaxHighlighting(customHighlightStyle),
-            syntaxHighlighting(defaultHighlightStyle),
+            // 语法高亮（使用 compartment 以便动态更新）
+            this.highlightCompartment.of([]),
 
             // 空白字符显示
             whitespacePlugin,
@@ -488,22 +493,154 @@ class CodeMirrorViewer {
 
         // 添加点击事件监听
         this.view.dom.addEventListener('click', this.handleClick.bind(this));
+
+        // 添加双击事件监听（用于触屏双击字符串路径跳转）
+        this.view.dom.addEventListener('dblclick', this.handleDoubleClick.bind(this));
+
+        // 添加捏合缩放事件监听
+        this.setupPinchZoom(this.view.dom);
+    }
+
+    /**
+     * 设置捏合缩放
+     * @param {HTMLElement} element - 要监听的元素
+     */
+    setupPinchZoom(element) {
+        if (!element) return;
+
+        // 在元素上监听触摸事件，使用捕获阶段
+        element.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 2) {
+                this.isPinching = true;
+                this.pinchDistance = this.getDistance(e.touches[0], e.touches[1]);
+                e.preventDefault();
+            }
+        }, { passive: false, capture: true });
+
+        element.addEventListener('touchmove', (e) => {
+            if (this.isPinching && e.touches.length === 2) {
+                const currentDistance = this.getDistance(e.touches[0], e.touches[1]);
+                const delta = currentDistance - this.pinchDistance;
+                const sensitivity = 0.003;
+                const newZoom = Math.max(0.5, Math.min(3.0, this.zoomLevel + delta * sensitivity));
+                this.setZoom(newZoom);
+                this.pinchDistance = currentDistance;
+                e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+            }
+        }, { passive: false, capture: true });
+
+        element.addEventListener('touchend', (e) => {
+            if (e.touches.length < 2) {
+                this.isPinching = false;
+            }
+        }, { passive: false, capture: true });
+    }
+
+    /**
+     * 计算两点之间的距离
+     * @param {Touch} touch1 - 第一个触点
+     * @param {Touch} touch2 - 第二个触点
+     * @returns {number} 距离
+     */
+    getDistance(touch1, touch2) {
+        const dx = touch1.clientX - touch2.clientX;
+        const dy = touch1.clientY - touch2.clientY;
+        return Math.sqrt(dx * dx + dy * dy);
     }
 
     /**
      * 处理点击事件
-     * @param {MouseEvent} event 
+     * @param {MouseEvent} event
      */
     handleClick(event) {
         const target = event.target;
-        
+
         // 检查是否点击了路径链接
         if (target.classList.contains('path-link')) {
             event.preventDefault();
             event.stopPropagation();
-            
+
             const path = target.dataset.path || target.textContent;
             if (path && this.onPathClick) {
+                this.onPathClick(path);
+            }
+        }
+    }
+
+    /**
+     * 处理双击事件 - 用于触屏双击字符串路径跳转
+     * @param {MouseEvent} event
+     */
+    handleDoubleClick(event) {
+        const pos = this.view.posAtCoords({ x: event.clientX, y: event.clientY });
+        if (pos === null) return;
+
+        const line = this.view.state.doc.lineAt(pos);
+        const lineText = line.text;
+
+        // 匹配字符串路径（单引号、双引号或反引号包围的路径）
+        const pathRegex = /`([^`]*?\/?[^`]*?\.[a-zA-Z0-9]+)`|"([^"]*?\/?[^"]*?\.[a-zA-Z0-9]+)"|'([^']*?\/?[^']*?\.[a-zA-Z0-9]+)'/gi;
+        let match;
+        let bestMatch = null;
+        let bestDistance = Infinity;
+
+        // 查找距离点击位置最近的路径
+        while ((match = pathRegex.exec(lineText)) !== null) {
+            const matchStart = match.index;
+            const matchEnd = match.index + match[0].length;
+
+            // 检查点击位置是否在匹配范围内
+            if (pos >= line.from + matchStart && pos <= line.from + matchEnd) {
+                // 提取路径
+                const backtickPath = match[1];
+                const doubleQuotePath = match[2];
+                const singleQuotePath = match[3];
+
+                let path;
+                if (backtickPath) {
+                    path = backtickPath;
+                } else if (doubleQuotePath) {
+                    path = doubleQuotePath;
+                } else if (singleQuotePath) {
+                    path = singleQuotePath;
+                }
+
+                if (path && this.onPathClick) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    this.onPathClick(path);
+                    return;
+                }
+            }
+
+            // 计算距离，用于模糊匹配
+            const distance = Math.abs(pos - (line.from + matchStart));
+            if (distance < bestDistance && distance < 50) {
+                bestDistance = distance;
+                bestMatch = match;
+            }
+        }
+
+        // 如果没有精确匹配，尝试使用最近的匹配（距离小于50字符）
+        if (bestMatch && bestDistance < 50 && this.onPathClick) {
+            const backtickPath = bestMatch[1];
+            const doubleQuotePath = bestMatch[2];
+            const singleQuotePath = bestMatch[3];
+
+            let path;
+            if (backtickPath) {
+                path = backtickPath;
+            } else if (doubleQuotePath) {
+                path = doubleQuotePath;
+            } else if (singleQuotePath) {
+                path = singleQuotePath;
+            }
+
+            if (path) {
+                event.preventDefault();
+                event.stopPropagation();
                 this.onPathClick(path);
             }
         }
@@ -533,13 +670,78 @@ class CodeMirrorViewer {
      * 设置语言支持
      * @param {string} filename - 文件名
      */
-    setLanguage(filename) {
+    async setLanguage(filename) {
         const extension = filename ? filename.split('.').pop().toLowerCase() : '';
-        
-        // 如果是 PVF 相关文件，启用 PVF 语言
-        if (['equ', 'lst', 'stk', 'act', 'ai', 'aic', 'key', 'nut', 'als', 'txt', 'tbl', 'str'].includes(extension)) {
+
+        // 应用自定义高亮样式（等待异步加载完成）
+        const highlightStyle = await createHighlightStyle();
+        this.view.dispatch({
+            effects: this.highlightCompartment.reconfigure(syntaxHighlighting(highlightStyle))
+        });
+
+        // 松鼠脚本文件 (.nut) - 使用特殊的 Squirrel 语言高亮
+        if (extension === 'nut') {
             this.view.dispatch({
                 effects: this.languageCompartment.reconfigure(pvfLanguageSupport)
+            });
+            return;
+        }
+
+        // 其他 PVF 相关文件
+        if (['equ', 'lst', 'stk', 'act', 'ai', 'aic', 'key', 'als', 'txt', 'tbl', 'str', 'stm', 'ora', 'map', 'obj', 'dgn'].includes(extension)) {
+            this.view.dispatch({
+                effects: this.languageCompartment.reconfigure(pvfLanguageSupport)
+            });
+            return;
+        }
+
+        // 其他文件格式支持
+        let language = null;
+        
+        // 编程语言
+        if (['js', 'jsx', 'mjs'].includes(extension)) {
+            language = languages.javascript();
+        } else if (['ts', 'tsx'].includes(extension)) {
+            language = languages.typescript();
+        } else if (['html', 'htm'].includes(extension)) {
+            language = languages.html();
+        } else if (['css'].includes(extension)) {
+            language = languages.css();
+        } else if (['json'].includes(extension)) {
+            language = languages.json();
+        } else if (['xml'].includes(extension)) {
+            language = languages.xml();
+        } else if (['py'].includes(extension)) {
+            language = languages.python();
+        } else if (['java'].includes(extension)) {
+            language = languages.java();
+        } else if (['cpp', 'cc', 'cxx', 'hpp', 'hxx'].includes(extension)) {
+            language = languages.cpp();
+        } else if (['c', 'h'].includes(extension)) {
+            language = languages.c();
+        } else if (['cs'].includes(extension)) {
+            language = languages.csharp();
+        } else if (['php'].includes(extension)) {
+            language = languages.php();
+        } else if (['rb'].includes(extension)) {
+            language = languages.ruby();
+        } else if (['go'].includes(extension)) {
+            language = languages.go();
+        } else if (['rs'].includes(extension)) {
+            language = languages.rust();
+        } else if (['sql'].includes(extension)) {
+            language = languages.sql();
+        } else if (['sh', 'bash'].includes(extension)) {
+            language = languages.shell();
+        } else if (['yaml', 'yml'].includes(extension)) {
+            language = languages.yaml();
+        } else if (['md', 'markdown'].includes(extension)) {
+            language = languages.markdown();
+        }
+
+        if (language) {
+            this.view.dispatch({
+                effects: this.languageCompartment.reconfigure(language)
             });
         } else {
             this.view.dispatch({
@@ -562,12 +764,16 @@ class CodeMirrorViewer {
      */
     setZoom(level) {
         this.zoomLevel = Math.max(0.5, Math.min(3.0, level));
-        
-        // 更新主题中的字体大小
+        const fontSize = `${14 * this.zoomLevel}px`;
+
+        // 更新主题中的字体大小，同时更新 .cm-content
         const themeExtension = EditorView.theme({
-            '&': { fontSize: `${14 * this.zoomLevel}px` }
+            '&': { fontSize: fontSize },
+            '.cm-content': { fontSize: fontSize },
+            '.cm-line': { fontSize: fontSize },
+            '.cm-gutters': { fontSize: fontSize }
         });
-        
+
         this.view.dispatch({
             effects: this.themeCompartment.reconfigure(themeExtension)
         });
@@ -657,6 +863,19 @@ class CodeMirrorViewer {
             return '';
         }
         return this.view.state.doc.toString();
+    }
+
+    /**
+     * 重新加载高亮样式（用于配色更新后）
+     */
+    async reloadHighlightStyle() {
+        if (!this.view) {
+            return;
+        }
+        const newHighlightStyle = await createHighlightStyle();
+        this.view.dispatch({
+            effects: this.highlightCompartment.reconfigure(syntaxHighlighting(newHighlightStyle))
+        });
     }
 }
 
