@@ -320,7 +320,28 @@ export const pvfLanguage = new StreamLanguage({
             return null;
         }
 
+        // 处理字符串（反引号包围的内容）- 如 `Potion`
+        // 先检查是否已经在字符串模式中（必须在标签检查之前）
+        if (state.inString) {
+            if (stream.peek() === '`') {
+                stream.next();
+                state.inString = false;
+                return "string";
+            } else {
+                stream.next();
+                return "string";
+            }
+        }
+
+        // 如果不在字符串模式中，检查是否遇到开始反引号
+        if (stream.peek() === '`') {
+            stream.next(); // 跳过第一个反引号
+            state.inString = true;
+            return "string";
+        }
+
         // 处理标签（方括号包围的内容）- 如 [MOTION], [/MOTION], [BASE ANI]
+        // 只在非字符串模式下检查标签
         if (stream.peek() === '[') {
             stream.next(); // 跳过 [
 
@@ -341,26 +362,6 @@ export const pvfLanguage = new StreamLanguage({
 
             // 返回标签类型：结束标签使用 tagName，普通标签使用 labelName
             return isClosing ? "tagName" : "labelName";
-        }
-
-        // 处理字符串（反引号包围的内容）- 如 `Potion`
-        // 先检查是否已经在字符串模式中
-        if (state.inString) {
-            if (stream.peek() === '`') {
-                stream.next();
-                state.inString = false;
-                return "string";
-            } else {
-                stream.next();
-                return "string";
-            }
-        }
-
-        // 如果不在字符串模式中，检查是否遇到开始反引号
-        if (stream.peek() === '`') {
-            stream.next(); // 跳过第一个反引号
-            state.inString = true;
-            return "string";
         }
 
         // 处理字符串链接（尖括号包围的内容，可能包含反引号）- 如 <.str对话>
@@ -387,22 +388,27 @@ export const pvfLanguage = new StreamLanguage({
         }
 
         // 处理数字（独立的数字，包括负数、小数、十六进制）
+        // 优先匹配浮点数（包括负数）
         if (stream.match(/^-?\d+\.\d+/)) {
             return "number"; // 浮点数
         }
 
+        // 匹配十六进制数
         if (stream.match(/^0[xX][0-9a-fA-F]+/)) {
             return "number"; // 十六进制
         }
 
-        // 匹配整数
-        const numberMatch = stream.match(/^\d+/);
+        // 匹配整数（包括负数）
+        const numberMatch = stream.match(/^-?\d+/);
         if (numberMatch) {
             // 检查下一个字符
             const nextChar = stream.peek();
-            // 如果下一个字符不是数字、字母a-f、A-F或x，则这是一个纯数字
-            if (!nextChar || !/[0-9a-fA-Fx]/.test(nextChar)) {
+            // 如果下一个字符不是数字、字母a-f、A-F、x或点，则这是一个纯数字
+            if (!nextChar || !/[0-9a-fA-Fx.]/.test(nextChar)) {
                 return "number";
+            } else if (nextChar === '.') {
+                // 如果后面跟着点，可能是小数点，退回让浮点数匹配处理
+                stream.backUp(stream.current().length);
             } else {
                 // 如果后面跟着字母，退回让标识符匹配处理
                 stream.backUp(stream.current().length);

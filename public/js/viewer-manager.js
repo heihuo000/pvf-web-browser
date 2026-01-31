@@ -26,12 +26,8 @@ export class ViewerManager {
             return false;
         }
 
-        // 初始化当前查看器
-        if (this.currentViewerType === 'codemirror') {
-            this.codemirrorViewer.initialize(this.container);
-        } else {
-            // 虚拟滚动在 loadFile 时初始化
-        }
+        // 注意：初始化时不创建查看器实例，只有在加载文件时才创建
+        // 这样可以显示欢迎页面而不被编辑器覆盖
 
         // 设置路径点击回调
         if (this.onPathClick) {
@@ -73,8 +69,9 @@ export class ViewerManager {
             if (this.onPathClick) {
                 this.codemirrorViewer.setOnPathClick(this.onPathClick);
             }
-            if (this.currentContent) {
-                const filename = this.currentFile ? this.currentFile.split('/').pop() : '';
+            // 只有当有当前文件时才加载内容
+            if (this.currentContent && this.currentFile) {
+                const filename = this.currentFile.split('/').pop();
                 this.codemirrorViewer.loadFile(this.currentContent, filename);
                 // loadFile 后再次设置，确保回调正确应用
                 if (this.onPathClick) {
@@ -83,7 +80,8 @@ export class ViewerManager {
             }
         } else {
             this.currentViewer = this.virtualScrollViewer;
-            if (this.currentLines) {
+            // 只有当有当前文件时才加载内容
+            if (this.currentLines && this.currentFile) {
                 this.virtualScrollViewer.init('fileViewer', this.currentLines, this.currentLanguageClass, this.currentShowWhitespace, {
                     currentFile: this.currentFile,
                     namePreviewCache: this.globalNamePreviewCache,
@@ -128,6 +126,13 @@ export class ViewerManager {
         // 根据当前查看器类型加载文件
         if (this.currentViewerType === 'codemirror') {
             this.codemirrorViewer.setOnPathClick(options.onPathClick);
+            
+            // 确保 CodeMirror 已初始化
+            if (!this.codemirrorViewer.view && this.container) {
+                console.log('Initializing CodeMirror viewer...');
+                this.codemirrorViewer.initialize(this.container);
+            }
+            
             const loaded = this.codemirrorViewer.loadFile(content, filename);
             if (!loaded) {
                 // 如果加载失败（CodeMirror 未初始化），重新初始化
@@ -217,6 +222,17 @@ export class ViewerManager {
             return this.codemirrorViewer.getContent();
         }
         return this.currentContent || '';
+    }
+
+    /**
+     * 清空当前状态（关闭所有标签时调用）
+     */
+    clearState() {
+        this.currentFile = null;
+        this.currentContent = null;
+        this.currentLines = null;
+        this.currentLanguageClass = null;
+        this.currentShowWhitespace = false;
     }
 
     destroy() {

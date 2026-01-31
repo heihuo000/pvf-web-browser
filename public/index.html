@@ -1010,6 +1010,98 @@
             gap: 10px;
         }
 
+        /* 设置对话框样式 */
+        .settings-tabs {
+            display: flex;
+            border-bottom: 1px solid #3c3c3c;
+            background: #2d2d2d;
+        }
+
+        .settings-tab {
+            flex: 1;
+            padding: 12px 16px;
+            background: transparent;
+            border: none;
+            color: #858585;
+            cursor: pointer;
+            font-size: 14px;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .settings-tab:hover {
+            color: #d4d4d4;
+            background: #3c3c3c;
+        }
+
+        .settings-tab.active {
+            color: #4ec9b0;
+            border-bottom-color: #4ec9b0;
+            background: #252526;
+        }
+
+        .settings-tab-content {
+            display: none;
+            padding: 20px;
+        }
+
+        .settings-tab-content.active {
+            display: block;
+        }
+
+        .settings-section {
+            margin-bottom: 24px;
+        }
+
+        .settings-section:last-child {
+            margin-bottom: 0;
+        }
+
+        .settings-section h3 {
+            font-size: 16px;
+            font-weight: 600;
+            color: #d4d4d4;
+            margin: 0 0 16px 0;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #3c3c3c;
+        }
+
+        .settings-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #3c3c3c;
+        }
+
+        .settings-item:last-child {
+            border-bottom: none;
+        }
+
+        .settings-item > label {
+            flex: 1;
+            color: #d4d4d4;
+            font-size: 14px;
+        }
+
+        .settings-item > input[type="number"],
+        .settings-item > input[type="text"],
+        .settings-item > select {
+            width: 120px;
+            padding: 6px 10px;
+            background: #3c3c3c;
+            border: 1px solid #555;
+            color: #d4d4d4;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .settings-item > input[type="number"]:focus,
+        .settings-item > input[type="text"]:focus,
+        .settings-item > select:focus {
+            outline: none;
+            border-color: #4ec9b0;
+        }
+
         @media (max-width: 768px) {
             .modal-content {
                 padding: 15px;
@@ -1267,6 +1359,124 @@
             border-radius: 2px;
         }
 
+        /* 欢迎页面 */
+        .welcome-page {
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #1e1e1e 0%, #252526 100%);
+        }
+
+        .welcome-content {
+            text-align: center;
+            max-width: 600px;
+            padding: 40px 20px;
+        }
+
+        .welcome-content h1 {
+            font-size: 36px;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, #4ec9b0 0%, #007acc 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .welcome-subtitle {
+            font-size: 16px;
+            color: #858585;
+            margin-bottom: 30px;
+        }
+
+        .welcome-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin-bottom: 40px;
+            flex-wrap: wrap;
+        }
+
+        .welcome-actions button {
+            padding: 12px 24px;
+            font-size: 14px;
+            background: #007acc;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .welcome-actions button:hover {
+            background: #0086e6;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 122, 204, 0.3);
+        }
+
+        .welcome-actions button.secondary {
+            background: #3c3c3c;
+        }
+
+        .welcome-actions button.secondary:hover {
+            background: #4a4a4a;
+        }
+
+        .recent-files {
+            text-align: left;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #3c3c3c;
+        }
+
+        .recent-files h3 {
+            font-size: 16px;
+            color: #d4d4d4;
+            margin: 0 0 15px 0;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #3c3c3c;
+        }
+
+        .recent-files ul {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        .recent-files li {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .recent-files li:hover {
+            background: #2a2d2e;
+        }
+
+        .recent-file-index {
+            color: #858585;
+            font-size: 12px;
+            min-width: 20px;
+        }
+
+        .recent-file-name {
+            color: #d4d4d4;
+            font-size: 13px;
+            font-weight: 500;
+            flex: 1;
+        }
+
+        .recent-file-path {
+            color: #858585;
+            font-size: 11px;
+            font-family: 'Consolas', monospace;
+        }
+
         .breadcrumb-item:hover {
             background: #3c3c3c;
         }
@@ -1395,7 +1605,7 @@
                 <div class="toolbar-group">
                     <button id="addBookmarkBtn" title="添加书签">⭐</button>
                     <button id="advancedSearchBtn" title="高级搜索">🔍</button>
-                    <button id="colorSettingsBtn" title="配色设置">🎨</button>
+                    <button id="settingsBtn" title="设置">⚙️</button>
                     <button id="switchViewerBtn" title="切换查看器">🔄</button>
                     <button id="editBtn" disabled>编辑</button>
                     <button id="extractBtn" disabled>提取</button>
@@ -1599,62 +1809,113 @@
         </div>
     </div>
 
-    <!-- 配色设置对话框 -->
-    <div class="modal" id="colorSettingsModal">
-        <div class="modal-content" style="max-width: 500px; max-height: 80vh; overflow-y: auto;">
-            <div class="modal-header">CodeMirror 配色设置</div>
-            <div class="modal-body">
-                <div class="color-settings-grid">
-                    <div class="color-setting-item">
-                        <label>标签 [TAG] / [/TAG]</label>
-                        <input type="color" id="color-labelName" value="#4ec9b0">
+    <!-- 设置对话框 -->
+    <div class="modal" id="settingsModal">
+        <div class="modal-content" style="max-width: 600px; max-height: 85vh; overflow: hidden; display: flex; flex-direction: column;">
+            <div class="modal-header">设置</div>
+            <div class="modal-body" style="flex: 1; overflow-y: auto; padding: 0;">
+                <!-- 设置选项卡 -->
+                <div class="settings-tabs">
+                    <button class="settings-tab active" data-tab="colors">配色方案</button>
+                    <button class="settings-tab" data-tab="editor">编辑器</button>
+                    <button class="settings-tab" data-tab="display">显示</button>
+                </div>
+
+                <!-- 配色方案选项卡 -->
+                <div class="settings-tab-content active" data-tab="colors">
+                    <div class="color-settings-grid">
+                        <div class="color-setting-item">
+                            <label>标签 [TAG] / [/TAG]</label>
+                            <input type="color" id="settings-color-labelName" value="#4ec9b0">
+                        </div>
+                        <div class="color-setting-item">
+                            <label>字符串 `string`</label>
+                            <input type="color" id="settings-color-string" value="#ce9178">
+                        </div>
+                        <div class="color-setting-item">
+                            <label>字符串链接 &lt;link&gt;</label>
+                            <input type="color" id="settings-color-url" value="#9cdcfe">
+                        </div>
+                        <div class="color-setting-item">
+                            <label>数字 123</label>
+                            <input type="color" id="settings-color-number" value="#b5cea8">
+                        </div>
+                        <div class="color-setting-item">
+                            <label>注释 // comment</label>
+                            <input type="color" id="settings-color-comment" value="#6a9955">
+                        </div>
+                        <div class="color-setting-item">
+                            <label>变量名 variable</label>
+                            <input type="color" id="settings-color-variableName" value="#9cdcfe">
+                        </div>
+                        <div class="color-setting-item">
+                            <label>操作符 + - =</label>
+                            <input type="color" id="settings-color-operator" value="#d4d4d4">
+                        </div>
+                        <div class="color-setting-item">
+                            <label>标点符号 [ ] `</label>
+                            <input type="color" id="settings-color-punctuation" value="#d4d4d4">
+                        </div>
+                        <div class="color-setting-item">
+                            <label>常量 CONST</label>
+                            <input type="color" id="settings-color-constant" value="#d7ba7d">
+                        </div>
+                        <div class="color-setting-item">
+                            <label>链接 path/to/file</label>
+                            <input type="color" id="settings-color-link" value="#9cdcfe">
+                        </div>
+                        <div class="color-setting-item">
+                            <label>默认文本</label>
+                            <input type="color" id="settings-color-text" value="#d4d4d4">
+                        </div>
                     </div>
-                    <div class="color-setting-item">
-                        <label>字符串 `string`</label>
-                        <input type="color" id="color-string" value="#ce9178">
+                </div>
+
+                <!-- 编辑器选项卡 -->
+                <div class="settings-tab-content" data-tab="editor">
+                    <div class="settings-section">
+                        <h3>字体设置</h3>
+                        <div class="settings-item">
+                            <label>字体大小</label>
+                            <input type="number" id="settings-font-size" value="14" min="10" max="24">
+                        </div>
+                        <div class="settings-item">
+                            <label>行高</label>
+                            <input type="number" id="settings-line-height" value="1.6" min="1.0" max="2.5" step="0.1">
+                        </div>
                     </div>
-                    <div class="color-setting-item">
-                        <label>字符串链接 &lt;link&gt;</label>
-                        <input type="color" id="color-url" value="#9cdcfe">
+                    <div class="settings-section">
+                        <h3>编辑器行为</h3>
+                        <div class="settings-item">
+                            <label>启用行号</label>
+                            <input type="checkbox" id="settings-line-numbers" checked>
+                        </div>
+                        <div class="settings-item">
+                            <label>显示空白字符</label>
+                            <input type="checkbox" id="settings-show-whitespace">
+                        </div>
                     </div>
-                    <div class="color-setting-item">
-                        <label>数字 123</label>
-                        <input type="color" id="color-number" value="#b5cea8">
-                    </div>
-                    <div class="color-setting-item">
-                        <label>注释 // comment</label>
-                        <input type="color" id="color-comment" value="#6a9955">
-                    </div>
-                    <div class="color-setting-item">
-                        <label>变量名 variable</label>
-                        <input type="color" id="color-variableName" value="#9cdcfe">
-                    </div>
-                    <div class="color-setting-item">
-                        <label>操作符 + - =</label>
-                        <input type="color" id="color-operator" value="#d4d4d4">
-                    </div>
-                    <div class="color-setting-item">
-                        <label>标点符号 [ ] `</label>
-                        <input type="color" id="color-punctuation" value="#d4d4d4">
-                    </div>
-                    <div class="color-setting-item">
-                        <label>常量 CONST</label>
-                        <input type="color" id="color-constant" value="#d7ba7d">
-                    </div>
-                    <div class="color-setting-item">
-                        <label>链接 path/to/file</label>
-                        <input type="color" id="color-link" value="#9cdcfe">
-                    </div>
-                    <div class="color-setting-item">
-                        <label>默认文本</label>
-                        <input type="color" id="color-text" value="#d4d4d4">
+                </div>
+
+                <!-- 显示选项卡 -->
+                <div class="settings-tab-content" data-tab="display">
+                    <div class="settings-section">
+                        <h3>缩放设置</h3>
+                        <div class="settings-item">
+                            <label>最小缩放级别</label>
+                            <input type="number" id="settings-zoom-min" value="0.5" min="0.25" max="1" step="0.05">
+                        </div>
+                        <div class="settings-item">
+                            <label>最大缩放级别</label>
+                            <input type="number" id="settings-zoom-max" value="3" min="1.5" max="5" step="0.1">
+                        </div>
                     </div>
                 </div>
             </div>
             <div class="modal-footer">
-                <button id="resetColorsBtn">恢复默认</button>
-                <button id="cancelColorSettingsBtn">取消</button>
-                <button id="saveColorSettingsBtn">应用</button>
+                <button id="resetSettingsBtn">恢复默认</button>
+                <button id="cancelSettingsBtn">取消</button>
+                <button id="saveSettingsBtn">应用</button>
             </div>
         </div>
     </div>

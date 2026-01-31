@@ -354,6 +354,7 @@ const whitespaceTheme = EditorView.baseTheme({
 class CodeMirrorViewer {
     constructor() {
         this.view = null;
+        this.container = null;
         this.currentFile = null;
         this.onPathClick = null;
         this.zoomLevel = 1;
@@ -378,6 +379,9 @@ class CodeMirrorViewer {
         if (!container || !(container instanceof HTMLElement)) {
             throw new Error('Invalid container: must be anHTMLElement');
         }
+
+        // 保存容器引用
+        this.container = container;
 
         // 清空容器内容（移除"empty"提示或其他旧内容）
         container.innerHTML = '';
@@ -652,6 +656,15 @@ class CodeMirrorViewer {
      * @param {string} filename - 文件名
      */
     loadFile(content, filename) {
+        // 确保视图已初始化
+        if (!this.view) {
+            if (!this.container) {
+                console.error('Container not set, cannot load file');
+                return false;
+            }
+            this.initialize(this.container);
+        }
+
         this.currentFile = filename;
 
         // 设置语言支持
@@ -671,6 +684,15 @@ class CodeMirrorViewer {
      * @param {string} filename - 文件名
      */
     async setLanguage(filename) {
+        // 如果视图还未初始化，先初始化
+        if (!this.view) {
+            if (!this.container) {
+                console.error('Container not set, cannot initialize CodeMirror viewer');
+                return;
+            }
+            this.initialize(this.container);
+        }
+
         const extension = filename ? filename.split('.').pop().toLowerCase() : '';
 
         // 应用自定义高亮样式（等待异步加载完成）
@@ -688,7 +710,7 @@ class CodeMirrorViewer {
         }
 
         // 其他 PVF 相关文件
-        if (['equ', 'lst', 'stk', 'act', 'ai', 'aic', 'key', 'als', 'txt', 'tbl', 'str', 'stm', 'ora', 'map', 'obj', 'dgn'].includes(extension)) {
+        if (['equ', 'lst', 'stk', 'act', 'ai', 'aic', 'key', 'als', 'txt', 'tbl', 'str', 'stm', 'ora', 'map', 'obj', 'dgn', 'etc'].includes(extension)) {
             this.view.dispatch({
                 effects: this.languageCompartment.reconfigure(pvfLanguageSupport)
             });
@@ -821,6 +843,11 @@ class CodeMirrorViewer {
                     addSpecialChars: /[ \t]/ // 仅匹配空格和制表符
                 })
             ];
+        }
+
+        // 如果视图未初始化，不执行 dispatch
+        if (!this.view) {
+            return;
         }
 
         this.view.dispatch({

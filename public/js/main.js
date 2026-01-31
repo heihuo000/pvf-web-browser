@@ -34,6 +34,10 @@ const fileContentCache = new Map(); // key -> { content, encoding, lines, timest
 let tabs = [];
 let activeTabId = null;
 
+// 最近打开文件记录（记录 PVF 内文件的路径）
+const MAX_RECENT_FILES = 20;
+let recentFiles = JSON.parse(localStorage.getItem('pvf-internal-recent-files') || '[]');
+
 // 全局名称预览缓存（用于优化加载速度）
 const globalNamePreviewCache = new Map();
 const globalNamePreviewPromises = new Map();
@@ -65,7 +69,7 @@ const elements = {
     toggleTagDescriptionsBtn: document.getElementById('toggleTagDescriptionsBtn'),
     addBookmarkBtn: document.getElementById('addBookmarkBtn'),
     advancedSearchBtn: document.getElementById('advancedSearchBtn'),
-    colorSettingsBtn: document.getElementById('colorSettingsBtn'),
+    settingsBtn: document.getElementById('settingsBtn'),
     switchViewerBtn: document.getElementById('switchViewerBtn'),
     encodingSelect: document.getElementById('encodingSelect'),
     searchInput: document.getElementById('searchInput'),
@@ -94,7 +98,7 @@ const editModal = modalManager.register('editModal');
 const batchExtractModal = modalManager.register('batchExtractModal');
 const searchModal = modalManager.register('searchModal');
 const editBookmarkModal = modalManager.register('editBookmarkModal');
-const colorSettingsModal = modalManager.register('colorSettingsModal');
+const settingsModal = modalManager.register('settingsModal');
 
 // 更新状态栏
 function updateStatus(message) {
@@ -197,11 +201,14 @@ function closeTab(tabId, event) {
         const newActiveIndex = Math.min(tabIndex, tabs.length - 1);
         switchToTab(tabs[newActiveIndex].id);
     } else if (tabs.length === 0) {
-        // 如果没有标签了，清空文件查看器
+        // 如果没有标签了，显示欢迎页面
         currentFile = null;
-        elements.fileViewer.innerHTML = '<div class="empty">选择一个文件查看内容</div>';
+        showWelcomePage();
         updateBreadcrumb('');
         activeTabId = null;
+
+        // 清空 viewerManager 的状态
+        viewerManager.clearState();
     }
 
     // 清理旧缓存（保留最近10个文件）
@@ -213,6 +220,71 @@ function closeTab(tabId, event) {
     }
 
     renderTabs();
+}
+
+// 显示欢迎页面
+function showWelcomePage() {
+    const recentFilesHtml = recentFiles.length > 0 ? `
+        <div class="recent-files">
+            <h3>最近打开的文件</h3>
+            <ul>
+                ${recentFiles.slice(0, 10).map((file, index) => `
+                    <li data-path="${file.path}" class="recent-file-item">
+                        <span class="recent-file-index">${index + 1}.</span>
+                        <span class="recent-file-name">${file.name}</span>
+                        <span class="recent-file-path">${file.path}</span>
+                    </li>
+                `).join('')}
+            </ul>
+        </div>
+    ` : '<p style="color: #858585;">暂无最近打开的文件记录</p>';
+
+    elements.fileViewer.innerHTML = `
+        <div class="welcome-page">
+            <div class="welcome-content">
+                <h1>🎮 PVF Web Browser</h1>
+                <p class="welcome-subtitle">DNF 游戏资源文件查看器</p>
+                <div class="welcome-actions">
+                    <button id="welcomeOpenBtn">打开 PVF 文件</button>
+                    <button id="welcomeBrowseBtn" class="secondary">浏览文件目录</button>
+                </div>
+                ${recentFilesHtml}
+            </div>
+        </div>
+    `;
+
+    // 绑定事件
+    document.getElementById('welcomeOpenBtn')?.addEventListener('click', () => {
+        document.getElementById('openBtn').click();
+    });
+
+    document.getElementById('welcomeBrowseBtn')?.addEventListener('click', () => {
+        toggleSidebar();
+    });
+
+    // 绑定最近文件点击事件
+    document.querySelectorAll('.recent-file-item').forEach(item => {
+        item.addEventListener('click', () => {
+            const path = item.dataset.path;
+            if (path) {
+                loadFileContent(path);
+            }
+        });
+    });
+}
+
+// 添加文件到最近打开记录
+function addToRecentFiles(path, name) {
+    // 移除已存在的记录
+    recentFiles = recentFiles.filter(f => f.path !== path);
+    // 添加到开头
+    recentFiles.unshift({ path, name, timestamp: Date.now() });
+    // 限制数量
+    if (recentFiles.length > MAX_RECENT_FILES) {
+        recentFiles = recentFiles.slice(0, MAX_RECENT_FILES);
+    }
+    // 保存到 localStorage
+    localStorage.setItem('pvf-internal-recent-files', JSON.stringify(recentFiles));
 }
 
 // 渲染标签页
@@ -494,6 +566,9 @@ async function loadFileContent(key) {
                 lines,
                 timestamp: Date.now()
             });
+            
+            // 添加到最近打开记录
+            addToRecentFiles(key, key.split('/').pop());
             
             // 清理旧缓存（保留最近10个文件）
             if (fileContentCache.size > 10) {
@@ -1214,6 +1289,10 @@ function init() {
 
     // 查看器切换按钮
     if (elements.switchViewerBtn) {
+        // 初始化按钮文本
+        const currentType = viewerManager.getCurrentViewerType();
+        elements.switchViewerBtn.textContent = currentType === 'codemirror' ? 'CM' : 'VS';
+
         elements.switchViewerBtn.addEventListener('click', () => {
             const currentType = viewerManager.getCurrentViewerType();
             const newType = currentType === 'codemirror' ? 'virtual' : 'codemirror';
@@ -1230,9 +1309,9 @@ function init() {
     }
 
     // 配色设置按钮
-    if (elements.colorSettingsBtn) {
-        elements.colorSettingsBtn.addEventListener('click', async () => {
-            console.log('Color settings button clicked');
+    if (elements.settingsBtn) {
+        elements.settingsBtn.addEventListener('click', async () => {
+            console.log('Settings button clicked');
             // 动态导入配色模块
             try {
                 const module = await import('./pvf-language.js');
@@ -1241,20 +1320,20 @@ function init() {
                 console.log('Current colors:', currentColors);
 
                 // 填充颜色输入框
-                document.getElementById('color-labelName').value = currentColors.labelName;
-                document.getElementById('color-string').value = currentColors.string;
-                document.getElementById('color-url').value = currentColors.url;
-                document.getElementById('color-number').value = currentColors.number;
-                document.getElementById('color-comment').value = currentColors.comment;
-                document.getElementById('color-variableName').value = currentColors.variableName;
-                document.getElementById('color-operator').value = currentColors.operator;
-                document.getElementById('color-punctuation').value = currentColors.punctuation;
-                document.getElementById('color-constant').value = currentColors.constant;
-                document.getElementById('color-link').value = currentColors.link;
-                document.getElementById('color-text').value = currentColors.text;
+                document.getElementById('settings-color-labelName').value = currentColors.labelName;
+                document.getElementById('settings-color-string').value = currentColors.string;
+                document.getElementById('settings-color-url').value = currentColors.url;
+                document.getElementById('settings-color-number').value = currentColors.number;
+                document.getElementById('settings-color-comment').value = currentColors.comment;
+                document.getElementById('settings-color-variableName').value = currentColors.variableName;
+                document.getElementById('settings-color-operator').value = currentColors.operator;
+                document.getElementById('settings-color-punctuation').value = currentColors.punctuation;
+                document.getElementById('settings-color-constant').value = currentColors.constant;
+                document.getElementById('settings-color-link').value = currentColors.link;
+                document.getElementById('settings-color-text').value = currentColors.text;
 
-                console.log('Showing color settings modal');
-                modalManager.show('colorSettingsModal');
+                console.log('Showing settings modal');
+                modalManager.show('settingsModal');
             } catch (error) {
                 console.error('Failed to load pvf-language module:', error);
             }
@@ -1284,21 +1363,21 @@ function init() {
     });
 
     // 保存配色设置
-    document.getElementById('saveColorSettingsBtn')?.addEventListener('click', async () => {
+    document.getElementById('saveSettingsBtn')?.addEventListener('click', async () => {
         try {
             const module = await import('./pvf-language.js');
             const newColors = {
-                labelName: document.getElementById('color-labelName').value,
-                string: document.getElementById('color-string').value,
-                url: document.getElementById('color-url').value,
-                number: document.getElementById('color-number').value,
-                comment: document.getElementById('color-comment').value,
-                variableName: document.getElementById('color-variableName').value,
-                operator: document.getElementById('color-operator').value,
-                punctuation: document.getElementById('color-punctuation').value,
-                constant: document.getElementById('color-constant').value,
-                link: document.getElementById('color-link').value,
-                text: document.getElementById('color-text').value
+                labelName: document.getElementById('settings-color-labelName').value,
+                string: document.getElementById('settings-color-string').value,
+                url: document.getElementById('settings-color-url').value,
+                number: document.getElementById('settings-color-number').value,
+                comment: document.getElementById('settings-color-comment').value,
+                variableName: document.getElementById('settings-color-variableName').value,
+                operator: document.getElementById('settings-color-operator').value,
+                punctuation: document.getElementById('settings-color-punctuation').value,
+                constant: document.getElementById('settings-color-constant').value,
+                link: document.getElementById('settings-color-link').value,
+                text: document.getElementById('settings-color-text').value
             };
 
             // 保存配色到服务器配置文件
@@ -1318,8 +1397,59 @@ function init() {
     });
 
     // 取消配色设置
-    document.getElementById('cancelColorSettingsBtn')?.addEventListener('click', () => {
-        modalManager.hide('colorSettingsModal');
+    document.getElementById('cancelSettingsBtn')?.addEventListener('click', () => {
+        modalManager.hide('settingsModal');
+    });
+
+    // 恢复默认设置
+    document.getElementById('resetSettingsBtn')?.addEventListener('click', () => {
+        if (confirm('确定要恢复默认设置吗？')) {
+            // 恢复默认颜色
+            const defaultColors = {
+                labelName: "#4ec9b0",
+                string: "#ce9178",
+                url: "#9cdcfe",
+                number: "#b5cea8",
+                comment: "#6a9955",
+                variableName: "#9cdcfe",
+                operator: "#d4d4d4",
+                punctuation: "#d4d4d4",
+                constant: "#d7ba7d",
+                link: "#9cdcfe",
+                text: "#d4d4d4"
+            };
+
+            document.getElementById('settings-color-labelName').value = defaultColors.labelName;
+            document.getElementById('settings-color-string').value = defaultColors.string;
+            document.getElementById('settings-color-url').value = defaultColors.url;
+            document.getElementById('settings-color-number').value = defaultColors.number;
+            document.getElementById('settings-color-comment').value = defaultColors.comment;
+            document.getElementById('settings-color-variableName').value = defaultColors.variableName;
+            document.getElementById('settings-color-operator').value = defaultColors.operator;
+            document.getElementById('settings-color-punctuation').value = defaultColors.punctuation;
+            document.getElementById('settings-color-constant').value = defaultColors.constant;
+            document.getElementById('settings-color-link').value = defaultColors.link;
+            document.getElementById('settings-color-text').value = defaultColors.text;
+
+            updateStatus('已重置为默认值');
+        }
+    });
+
+    // 设置对话框标签页切换
+    const settingsTabs = document.querySelectorAll('.settings-tab');
+    const settingsTabContents = document.querySelectorAll('.settings-tab-content');
+
+    settingsTabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            // 移除所有标签的 active 状态
+            settingsTabs.forEach(t => t.classList.remove('active'));
+            settingsTabContents.forEach(c => c.classList.remove('active'));
+
+            // 激活当前标签
+            tab.classList.add('active');
+            const targetTab = tab.dataset.tab;
+            document.querySelector(`.settings-tab-content[data-tab="${targetTab}"]`).classList.add('active');
+        });
     });
 
     // 批量模式按钮
@@ -1611,10 +1741,9 @@ function init() {
     // 加载数据
     console.log('Loading data...');
 
-    // 强制清除 "选择一个文件查看内容" 并初始化查看器
+    // 初始化查看器（但不显示内容）
     if (elements.fileViewer) {
-        console.log('Clearing fileViewer initial state...');
-        elements.fileViewer.innerHTML = '';
+        console.log('Initializing viewer manager...');
         viewerManager.initialize('fileViewer');
     }
 
@@ -1622,6 +1751,9 @@ function init() {
     fileMenuManager.load();
     loadFiles('');
     console.log('Data loaded');
+
+    // 初始显示欢迎页面（在查看器初始化之后）
+    showWelcomePage();
 
     // 暴露标签页函数到全局作用域（用于 HTML onclick）
     window.switchToTab = switchToTab;

@@ -19554,20 +19554,6 @@ var init_pvf_language = __esm({
         if (ateSpace) {
           return null;
         }
-        if (stream.peek() === "[") {
-          stream.next();
-          const isClosing = stream.peek() === "/";
-          if (isClosing) {
-            stream.next();
-          }
-          while (stream.peek() !== null && stream.peek() !== "]") {
-            stream.next();
-          }
-          if (stream.peek() === "]") {
-            stream.next();
-          }
-          return isClosing ? "tagName" : "labelName";
-        }
         if (state.inString) {
           if (stream.peek() === "`") {
             stream.next();
@@ -19582,6 +19568,20 @@ var init_pvf_language = __esm({
           stream.next();
           state.inString = true;
           return "string";
+        }
+        if (stream.peek() === "[") {
+          stream.next();
+          const isClosing = stream.peek() === "/";
+          if (isClosing) {
+            stream.next();
+          }
+          while (stream.peek() !== null && stream.peek() !== "]") {
+            stream.next();
+          }
+          if (stream.peek() === "]") {
+            stream.next();
+          }
+          return isClosing ? "tagName" : "labelName";
         }
         if (stream.peek() === "<") {
           stream.next();
@@ -19609,11 +19609,13 @@ var init_pvf_language = __esm({
         if (stream.match(/^0[xX][0-9a-fA-F]+/)) {
           return "number";
         }
-        const numberMatch = stream.match(/^\d+/);
+        const numberMatch = stream.match(/^-?\d+/);
         if (numberMatch) {
           const nextChar7 = stream.peek();
-          if (!nextChar7 || !/[0-9a-fA-Fx]/.test(nextChar7)) {
+          if (!nextChar7 || !/[0-9a-fA-Fx.]/.test(nextChar7)) {
             return "number";
+          } else if (nextChar7 === ".") {
+            stream.backUp(stream.current().length);
           } else {
             stream.backUp(stream.current().length);
           }
@@ -74605,6 +74607,7 @@ var whitespaceTheme = EditorView.baseTheme({
 var CodeMirrorViewer = class {
   constructor() {
     this.view = null;
+    this.container = null;
     this.currentFile = null;
     this.onPathClick = null;
     this.zoomLevel = 1;
@@ -74625,6 +74628,7 @@ var CodeMirrorViewer = class {
     if (!container || !(container instanceof HTMLElement)) {
       throw new Error("Invalid container: must be anHTMLElement");
     }
+    this.container = container;
     container.innerHTML = "";
     const extensions = [
       basicSetup,
@@ -74848,6 +74852,13 @@ var CodeMirrorViewer = class {
    * @param {string} filename - 文件名
    */
   loadFile(content3, filename) {
+    if (!this.view) {
+      if (!this.container) {
+        console.error("Container not set, cannot load file");
+        return false;
+      }
+      this.initialize(this.container);
+    }
     this.currentFile = filename;
     this.setLanguage(filename);
     this.setShowWhitespace(true);
@@ -74860,6 +74871,13 @@ var CodeMirrorViewer = class {
    * @param {string} filename - 文件名
    */
   async setLanguage(filename) {
+    if (!this.view) {
+      if (!this.container) {
+        console.error("Container not set, cannot initialize CodeMirror viewer");
+        return;
+      }
+      this.initialize(this.container);
+    }
     const extension = filename ? filename.split(".").pop().toLowerCase() : "";
     const highlightStyle = await createHighlightStyle();
     this.view.dispatch({
@@ -74871,7 +74889,7 @@ var CodeMirrorViewer = class {
       });
       return;
     }
-    if (["equ", "lst", "stk", "act", "ai", "aic", "key", "als", "txt", "tbl", "str", "stm", "ora", "map", "obj", "dgn"].includes(extension)) {
+    if (["equ", "lst", "stk", "act", "ai", "aic", "key", "als", "txt", "tbl", "str", "stm", "ora", "map", "obj", "dgn", "etc"].includes(extension)) {
       this.view.dispatch({
         effects: this.languageCompartment.reconfigure(pvf_language_default)
       });
@@ -74990,6 +75008,9 @@ var CodeMirrorViewer = class {
           // 仅匹配空格和制表符
         })
       ];
+    }
+    if (!this.view) {
+      return;
     }
     this.view.dispatch({
       effects: this.whitespaceCompartment.reconfigure(extension)
@@ -75575,10 +75596,6 @@ var ViewerManager = class {
       console.error(`Container with id "${containerId}" not found`);
       return false;
     }
-    if (this.currentViewerType === "codemirror") {
-      this.codemirrorViewer.initialize(this.container);
-    } else {
-    }
     if (this.onPathClick) {
       this.setPathClickCallback(this.onPathClick);
     }
@@ -75607,8 +75624,8 @@ var ViewerManager = class {
       if (this.onPathClick) {
         this.codemirrorViewer.setOnPathClick(this.onPathClick);
       }
-      if (this.currentContent) {
-        const filename = this.currentFile ? this.currentFile.split("/").pop() : "";
+      if (this.currentContent && this.currentFile) {
+        const filename = this.currentFile.split("/").pop();
         this.codemirrorViewer.loadFile(this.currentContent, filename);
         if (this.onPathClick) {
           this.codemirrorViewer.setOnPathClick(this.onPathClick);
@@ -75616,7 +75633,7 @@ var ViewerManager = class {
       }
     } else {
       this.currentViewer = this.virtualScrollViewer;
-      if (this.currentLines) {
+      if (this.currentLines && this.currentFile) {
         this.virtualScrollViewer.init("fileViewer", this.currentLines, this.currentLanguageClass, this.currentShowWhitespace, {
           currentFile: this.currentFile,
           namePreviewCache: this.globalNamePreviewCache,
@@ -75652,6 +75669,10 @@ var ViewerManager = class {
     }
     if (this.currentViewerType === "codemirror") {
       this.codemirrorViewer.setOnPathClick(options.onPathClick);
+      if (!this.codemirrorViewer.view && this.container) {
+        console.log("Initializing CodeMirror viewer...");
+        this.codemirrorViewer.initialize(this.container);
+      }
       const loaded = this.codemirrorViewer.loadFile(content3, filename);
       if (!loaded) {
         console.warn("CodeMirror load failed, reinitializing...");
@@ -75727,6 +75748,16 @@ var ViewerManager = class {
     }
     return this.currentContent || "";
   }
+  /**
+   * 清空当前状态（关闭所有标签时调用）
+   */
+  clearState() {
+    this.currentFile = null;
+    this.currentContent = null;
+    this.currentLines = null;
+    this.currentLanguageClass = null;
+    this.currentShowWhitespace = false;
+  }
   destroy() {
     this.codemirrorViewer.destroy();
     this.virtualScrollViewer.destroy();
@@ -75751,6 +75782,8 @@ var currentSearchParams = null;
 var fileContentCache = /* @__PURE__ */ new Map();
 var tabs = [];
 var activeTabId = null;
+var MAX_RECENT_FILES = 20;
+var recentFiles = JSON.parse(localStorage.getItem("pvf-internal-recent-files") || "[]");
 var globalNamePreviewCache = /* @__PURE__ */ new Map();
 var globalNamePreviewPromises = /* @__PURE__ */ new Map();
 var viewerManager = new ViewerManager();
@@ -75775,7 +75808,7 @@ var elements = {
   toggleTagDescriptionsBtn: document.getElementById("toggleTagDescriptionsBtn"),
   addBookmarkBtn: document.getElementById("addBookmarkBtn"),
   advancedSearchBtn: document.getElementById("advancedSearchBtn"),
-  colorSettingsBtn: document.getElementById("colorSettingsBtn"),
+  settingsBtn: document.getElementById("settingsBtn"),
   switchViewerBtn: document.getElementById("switchViewerBtn"),
   encodingSelect: document.getElementById("encodingSelect"),
   searchInput: document.getElementById("searchInput"),
@@ -75800,7 +75833,7 @@ var editModal = modalManager.register("editModal");
 var batchExtractModal = modalManager.register("batchExtractModal");
 var searchModal = modalManager.register("searchModal");
 var editBookmarkModal = modalManager.register("editBookmarkModal");
-var colorSettingsModal = modalManager.register("colorSettingsModal");
+var settingsModal = modalManager.register("settingsModal");
 function updateStatus(message) {
   elements.statusBar.textContent = message;
 }
@@ -75864,9 +75897,10 @@ function closeTab(tabId, event) {
     switchToTab(tabs[newActiveIndex].id);
   } else if (tabs.length === 0) {
     currentFile = null;
-    elements.fileViewer.innerHTML = '<div class="empty">\u9009\u62E9\u4E00\u4E2A\u6587\u4EF6\u67E5\u770B\u5185\u5BB9</div>';
+    showWelcomePage();
     updateBreadcrumb("");
     activeTabId = null;
+    viewerManager.clearState();
   }
   if (fileContentCache.size > 10) {
     const entries = Array.from(fileContentCache.entries());
@@ -75875,6 +75909,57 @@ function closeTab(tabId, event) {
     toDelete.forEach(([key]) => fileContentCache.delete(key));
   }
   renderTabs();
+}
+function showWelcomePage() {
+  const recentFilesHtml = recentFiles.length > 0 ? `
+        <div class="recent-files">
+            <h3>\u6700\u8FD1\u6253\u5F00\u7684\u6587\u4EF6</h3>
+            <ul>
+                ${recentFiles.slice(0, 10).map((file, index) => `
+                    <li data-path="${file.path}" class="recent-file-item">
+                        <span class="recent-file-index">${index + 1}.</span>
+                        <span class="recent-file-name">${file.name}</span>
+                        <span class="recent-file-path">${file.path}</span>
+                    </li>
+                `).join("")}
+            </ul>
+        </div>
+    ` : '<p style="color: #858585;">\u6682\u65E0\u6700\u8FD1\u6253\u5F00\u7684\u6587\u4EF6\u8BB0\u5F55</p>';
+  elements.fileViewer.innerHTML = `
+        <div class="welcome-page">
+            <div class="welcome-content">
+                <h1>\u{1F3AE} PVF Web Browser</h1>
+                <p class="welcome-subtitle">DNF \u6E38\u620F\u8D44\u6E90\u6587\u4EF6\u67E5\u770B\u5668</p>
+                <div class="welcome-actions">
+                    <button id="welcomeOpenBtn">\u6253\u5F00 PVF \u6587\u4EF6</button>
+                    <button id="welcomeBrowseBtn" class="secondary">\u6D4F\u89C8\u6587\u4EF6\u76EE\u5F55</button>
+                </div>
+                ${recentFilesHtml}
+            </div>
+        </div>
+    `;
+  document.getElementById("welcomeOpenBtn")?.addEventListener("click", () => {
+    document.getElementById("openBtn").click();
+  });
+  document.getElementById("welcomeBrowseBtn")?.addEventListener("click", () => {
+    toggleSidebar();
+  });
+  document.querySelectorAll(".recent-file-item").forEach((item) => {
+    item.addEventListener("click", () => {
+      const path = item.dataset.path;
+      if (path) {
+        loadFileContent(path);
+      }
+    });
+  });
+}
+function addToRecentFiles(path, name2) {
+  recentFiles = recentFiles.filter((f) => f.path !== path);
+  recentFiles.unshift({ path, name: name2, timestamp: Date.now() });
+  if (recentFiles.length > MAX_RECENT_FILES) {
+    recentFiles = recentFiles.slice(0, MAX_RECENT_FILES);
+  }
+  localStorage.setItem("pvf-internal-recent-files", JSON.stringify(recentFiles));
 }
 function renderTabs() {
   const container = document.getElementById("tabsContainer");
@@ -76084,6 +76169,7 @@ async function loadFileContent(key) {
         lines,
         timestamp: Date.now()
       });
+      addToRecentFiles(key, key.split("/").pop());
       if (fileContentCache.size > 10) {
         const entries = Array.from(fileContentCache.entries());
         entries.sort((a2, b) => a2[1].timestamp - b[1].timestamp);
@@ -76662,36 +76748,38 @@ function init() {
     });
   }
   if (elements.switchViewerBtn) {
+    const currentType = viewerManager.getCurrentViewerType();
+    elements.switchViewerBtn.textContent = currentType === "codemirror" ? "CM" : "VS";
     elements.switchViewerBtn.addEventListener("click", () => {
-      const currentType = viewerManager.getCurrentViewerType();
-      const newType = currentType === "codemirror" ? "virtual" : "codemirror";
+      const currentType2 = viewerManager.getCurrentViewerType();
+      const newType = currentType2 === "codemirror" ? "virtual" : "codemirror";
       viewerManager.switchViewer(newType);
       const viewerName = newType === "codemirror" ? "CM" : "VS";
       elements.switchViewerBtn.textContent = viewerName;
       updateStatus(`\u5DF2\u5207\u6362\u5230 ${newType === "codemirror" ? "CodeMirror" : "\u865A\u62DF\u6EDA\u52A8"} \u67E5\u770B\u5668`);
     });
   }
-  if (elements.colorSettingsBtn) {
-    elements.colorSettingsBtn.addEventListener("click", async () => {
-      console.log("Color settings button clicked");
+  if (elements.settingsBtn) {
+    elements.settingsBtn.addEventListener("click", async () => {
+      console.log("Settings button clicked");
       try {
         const module = await Promise.resolve().then(() => (init_pvf_language(), pvf_language_exports));
         console.log("pvf-language module loaded:", module);
         const currentColors2 = await module.getCurrentColors();
         console.log("Current colors:", currentColors2);
-        document.getElementById("color-labelName").value = currentColors2.labelName;
-        document.getElementById("color-string").value = currentColors2.string;
-        document.getElementById("color-url").value = currentColors2.url;
-        document.getElementById("color-number").value = currentColors2.number;
-        document.getElementById("color-comment").value = currentColors2.comment;
-        document.getElementById("color-variableName").value = currentColors2.variableName;
-        document.getElementById("color-operator").value = currentColors2.operator;
-        document.getElementById("color-punctuation").value = currentColors2.punctuation;
-        document.getElementById("color-constant").value = currentColors2.constant;
-        document.getElementById("color-link").value = currentColors2.link;
-        document.getElementById("color-text").value = currentColors2.text;
-        console.log("Showing color settings modal");
-        modalManager.show("colorSettingsModal");
+        document.getElementById("settings-color-labelName").value = currentColors2.labelName;
+        document.getElementById("settings-color-string").value = currentColors2.string;
+        document.getElementById("settings-color-url").value = currentColors2.url;
+        document.getElementById("settings-color-number").value = currentColors2.number;
+        document.getElementById("settings-color-comment").value = currentColors2.comment;
+        document.getElementById("settings-color-variableName").value = currentColors2.variableName;
+        document.getElementById("settings-color-operator").value = currentColors2.operator;
+        document.getElementById("settings-color-punctuation").value = currentColors2.punctuation;
+        document.getElementById("settings-color-constant").value = currentColors2.constant;
+        document.getElementById("settings-color-link").value = currentColors2.link;
+        document.getElementById("settings-color-text").value = currentColors2.text;
+        console.log("Showing settings modal");
+        modalManager.show("settingsModal");
       } catch (error) {
         console.error("Failed to load pvf-language module:", error);
       }
@@ -76714,21 +76802,21 @@ function init() {
       updateStatus("\u5DF2\u6062\u590D\u9ED8\u8BA4\u914D\u8272");
     });
   });
-  document.getElementById("saveColorSettingsBtn")?.addEventListener("click", async () => {
+  document.getElementById("saveSettingsBtn")?.addEventListener("click", async () => {
     try {
       const module = await Promise.resolve().then(() => (init_pvf_language(), pvf_language_exports));
       const newColors = {
-        labelName: document.getElementById("color-labelName").value,
-        string: document.getElementById("color-string").value,
-        url: document.getElementById("color-url").value,
-        number: document.getElementById("color-number").value,
-        comment: document.getElementById("color-comment").value,
-        variableName: document.getElementById("color-variableName").value,
-        operator: document.getElementById("color-operator").value,
-        punctuation: document.getElementById("color-punctuation").value,
-        constant: document.getElementById("color-constant").value,
-        link: document.getElementById("color-link").value,
-        text: document.getElementById("color-text").value
+        labelName: document.getElementById("settings-color-labelName").value,
+        string: document.getElementById("settings-color-string").value,
+        url: document.getElementById("settings-color-url").value,
+        number: document.getElementById("settings-color-number").value,
+        comment: document.getElementById("settings-color-comment").value,
+        variableName: document.getElementById("settings-color-variableName").value,
+        operator: document.getElementById("settings-color-operator").value,
+        punctuation: document.getElementById("settings-color-punctuation").value,
+        constant: document.getElementById("settings-color-constant").value,
+        link: document.getElementById("settings-color-link").value,
+        text: document.getElementById("settings-color-text").value
       };
       await module.saveCustomColors(newColors);
       if (viewerManager.currentViewerType === "codemirror") {
@@ -76741,8 +76829,48 @@ function init() {
       updateStatus("\u4FDD\u5B58\u914D\u8272\u5931\u8D25: " + error.message);
     }
   });
-  document.getElementById("cancelColorSettingsBtn")?.addEventListener("click", () => {
-    modalManager.hide("colorSettingsModal");
+  document.getElementById("cancelSettingsBtn")?.addEventListener("click", () => {
+    modalManager.hide("settingsModal");
+  });
+  document.getElementById("resetSettingsBtn")?.addEventListener("click", () => {
+    if (confirm("\u786E\u5B9A\u8981\u6062\u590D\u9ED8\u8BA4\u8BBE\u7F6E\u5417\uFF1F")) {
+      const defaultColors2 = {
+        labelName: "#4ec9b0",
+        string: "#ce9178",
+        url: "#9cdcfe",
+        number: "#b5cea8",
+        comment: "#6a9955",
+        variableName: "#9cdcfe",
+        operator: "#d4d4d4",
+        punctuation: "#d4d4d4",
+        constant: "#d7ba7d",
+        link: "#9cdcfe",
+        text: "#d4d4d4"
+      };
+      document.getElementById("settings-color-labelName").value = defaultColors2.labelName;
+      document.getElementById("settings-color-string").value = defaultColors2.string;
+      document.getElementById("settings-color-url").value = defaultColors2.url;
+      document.getElementById("settings-color-number").value = defaultColors2.number;
+      document.getElementById("settings-color-comment").value = defaultColors2.comment;
+      document.getElementById("settings-color-variableName").value = defaultColors2.variableName;
+      document.getElementById("settings-color-operator").value = defaultColors2.operator;
+      document.getElementById("settings-color-punctuation").value = defaultColors2.punctuation;
+      document.getElementById("settings-color-constant").value = defaultColors2.constant;
+      document.getElementById("settings-color-link").value = defaultColors2.link;
+      document.getElementById("settings-color-text").value = defaultColors2.text;
+      updateStatus("\u5DF2\u91CD\u7F6E\u4E3A\u9ED8\u8BA4\u503C");
+    }
+  });
+  const settingsTabs = document.querySelectorAll(".settings-tab");
+  const settingsTabContents = document.querySelectorAll(".settings-tab-content");
+  settingsTabs.forEach((tab3) => {
+    tab3.addEventListener("click", () => {
+      settingsTabs.forEach((t2) => t2.classList.remove("active"));
+      settingsTabContents.forEach((c2) => c2.classList.remove("active"));
+      tab3.classList.add("active");
+      const targetTab = tab3.dataset.tab;
+      document.querySelector(`.settings-tab-content[data-tab="${targetTab}"]`).classList.add("active");
+    });
   });
   if (elements.batchModeBtn) {
     elements.batchModeBtn.addEventListener("click", () => {
@@ -76961,14 +77089,14 @@ function init() {
   }
   console.log("Loading data...");
   if (elements.fileViewer) {
-    console.log("Clearing fileViewer initial state...");
-    elements.fileViewer.innerHTML = "";
+    console.log("Initializing viewer manager...");
     viewerManager.initialize("fileViewer");
   }
   bookmarkManager.load();
   fileMenuManager.load();
   loadFiles("");
   console.log("Data loaded");
+  showWelcomePage();
   window.switchToTab = switchToTab;
   window.closeTab = closeTab;
 }
