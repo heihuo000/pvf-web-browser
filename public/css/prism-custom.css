@@ -86,6 +86,7 @@ pre, code {
     color: #9cdcfe !important;
     text-decoration: underline;
     cursor: pointer;
+    pointer-events: auto !important;
 }
 
 .path-link:hover {

@@ -65,6 +65,7 @@ const elements = {
     toggleTagDescriptionsBtn: document.getElementById('toggleTagDescriptionsBtn'),
     addBookmarkBtn: document.getElementById('addBookmarkBtn'),
     advancedSearchBtn: document.getElementById('advancedSearchBtn'),
+    switchViewerBtn: document.getElementById('switchViewerBtn'),
     encodingSelect: document.getElementById('encodingSelect'),
     searchInput: document.getElementById('searchInput'),
     fileTree: document.getElementById('fileTree'),
@@ -273,9 +274,20 @@ function renderFileFromCache(key, cached) {
             updateStatus('文件未找到: ' + path);
         }
     });
-    
-    viewerManager.loadFile(key, content, lines, languageClass, showWhitespaceMode);
-    
+
+    viewerManager.loadFile(key, content, lines, languageClass, showWhitespaceMode, {
+        namePreviewCache: globalNamePreviewCache,
+        namePreviewPromises: globalNamePreviewPromises,
+        onPathClick: async (path) => {
+            const actualPath = await fileFormatter.findFileIgnoreCase(path);
+            if (actualPath) {
+                loadFileContent(actualPath);
+            } else {
+                updateStatus('文件未找到: ' + path);
+            }
+        }
+    });
+
     updateStatus(`${key.split('/').pop()} (${lineCount} 行)`);
 }
 
@@ -1157,29 +1169,61 @@ function init() {
 
     // 编辑按钮
     if (elements.editBtn) {
-        elements.editBtn.addEventListener('click', () => {
+        elements.editBtn.addEventListener('click', async () => {
             if (!currentFile) {
                 alert('请先选择一个文件');
                 return;
             }
-            document.getElementById('editFileName').textContent = currentFile.split('/').pop();
-            
-            // 从缓存或服务器加载文件内容
-            const cached = fileContentCache.get(currentFile);
-            if (cached) {
-                document.getElementById('editFileContent').value = cached.lines.join('\n');
-            } else {
-                // 如果没有缓存，从服务器加载
-                API.getFile(currentFile).then(response => {
-                    if (response.content) {
-                        document.getElementById('editFileContent').value = response.content.join('\n');
+
+            const currentEditable = viewerManager.isEditable();
+
+            if (currentEditable) {
+                // 当前是编辑模式，切换回预览模式，保存内容
+                try {
+                    const newContent = viewerManager.getContent();
+                    const response = await API.saveFile(currentFile, newContent, 'utf8');
+                    if (response.success || response.result === 'success') {
+                        updateStatus('文件保存成功: ' + currentFile);
+                        // 更新缓存
+                        const lines = newContent.split('\n');
+                        fileContentCache.set(currentFile, {
+                            content: newContent,
+                            lines: lines,
+                            encoding: 'utf8',
+                            timestamp: Date.now()
+                        });
+                        // 切换到只读模式
+                        viewerManager.setEditable(false);
+                        elements.editBtn.textContent = '编辑';
+                    } else {
+                        alert('保存文件失败: ' + (response.message || response.error || '未知错误'));
                     }
-                }).catch(error => {
-                    alert('加载文件内容失败: ' + error.message);
-                });
+                } catch (error) {
+                    alert('保存文件失败: ' + error.message);
+                }
+            } else {
+                // 当前是预览模式，切换到编辑模式
+                viewerManager.setEditable(true);
+                elements.editBtn.textContent = '预览';
+                updateStatus('进入编辑模式');
             }
-            
-            modalManager.show('editModal');
+        });
+    }
+
+    // 查看器切换按钮
+    if (elements.switchViewerBtn) {
+        elements.switchViewerBtn.addEventListener('click', () => {
+            const currentType = viewerManager.getCurrentViewerType();
+            const newType = currentType === 'codemirror' ? 'virtual' : 'codemirror';
+
+            // 切换查看器
+            viewerManager.switchViewer(newType);
+
+            // 更新按钮文本
+            const viewerName = newType === 'codemirror' ? 'CM' : 'VS';
+            elements.switchViewerBtn.textContent = viewerName;
+
+            updateStatus(`已切换到 ${newType === 'codemirror' ? 'CodeMirror' : '虚拟滚动'} 查看器`);
         });
     }
 

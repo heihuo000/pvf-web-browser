@@ -14,16 +14,16 @@ class ZoomManager {
         this.targetElement = null;
         this.loadScale();
     }
-    
+
     setTarget(element) {
         this.targetElement = element;
         this.applyScale();
     }
-    
+
     setZoomCallback(callback) {
         this.onZoomChange = callback;
     }
-    
+
     zoomIn() {
         this.scale = Math.min(this.scale + 0.1, this.maxScale);
         this.applyScale();
@@ -32,7 +32,7 @@ class ZoomManager {
             this.onZoomChange(this.scale);
         }
     }
-    
+
     zoomOut() {
         this.scale = Math.max(this.scale - 0.1, this.minScale);
         this.applyScale();
@@ -41,7 +41,7 @@ class ZoomManager {
             this.onZoomChange(this.scale);
         }
     }
-    
+
     zoomTo(newScale) {
         this.scale = Math.max(this.minScale, Math.min(newScale, this.maxScale));
         this.applyScale();
@@ -50,7 +50,7 @@ class ZoomManager {
             this.onZoomChange(this.scale);
         }
     }
-    
+
     reset() {
         this.scale = 1.0;
         this.applyScale();
@@ -59,30 +59,30 @@ class ZoomManager {
             this.onZoomChange(this.scale);
         }
     }
-    
+
     applyScale() {
         if (!this.targetElement) return;
-        
+
         const codeWithLines = this.targetElement.querySelector('.code-with-lines');
         if (codeWithLines) {
             // 保存当前的状态
             const currentTransform = codeWithLines.style.transform;
-            
+
             // 只有当缩放比例改变时才更新
             const newTransform = `scale(${this.scale})`;
             if (currentTransform !== newTransform) {
                 codeWithLines.style.transform = newTransform;
                 codeWithLines.style.transformOrigin = 'top left';
-                
+
                 // 不修改codeWithLines的宽度和高度，因为这会影响虚拟滚动的布局
                 // 缩放只通过transform实现，布局由viewport和content控制
             }
         }
     }
-    
+
     setupPinchZoom(element) {
         if (!element) return;
-        
+
         element.addEventListener('touchstart', (e) => {
             if (e.touches.length === 2) {
                 this.isPinching = true;
@@ -90,7 +90,7 @@ class ZoomManager {
                 e.preventDefault();
             }
         }, { passive: false });
-        
+
         element.addEventListener('touchmove', (e) => {
             if (this.isPinching && e.touches.length === 2) {
                 const currentDistance = this.getDistance(e.touches[0], e.touches[1]);
@@ -102,14 +102,14 @@ class ZoomManager {
                 e.preventDefault();
             }
         }, { passive: false });
-        
+
         element.addEventListener('touchend', (e) => {
             if (e.touches.length < 2) {
                 this.isPinching = false;
             }
         });
     }
-    
+
     setupKeyboardZoom() {
         document.addEventListener('keydown', (e) => {
             if ((e.ctrlKey || e.metaKey) && (e.key === '+' || e.key === '=')) {
@@ -126,13 +126,13 @@ class ZoomManager {
             }
         });
     }
-    
+
     getDistance(touch1, touch2) {
         const dx = touch1.clientX - touch2.clientX;
         const dy = touch1.clientY - touch2.clientY;
         return Math.sqrt(dx * dx + dy * dy);
     }
-    
+
     saveScale() {
         try {
             localStorage.setItem('pvf-zoom-scale', this.scale.toString());
@@ -140,7 +140,7 @@ class ZoomManager {
             console.warn('Failed to save zoom scale:', e);
         }
     }
-    
+
     loadScale() {
         try {
             const saved = localStorage.getItem('pvf-zoom-scale');
@@ -173,7 +173,7 @@ export class VirtualScrollManager {
         this.scrollTimeout = null;
         this.onScroll = null;
         this.onPathClick = null;
-        
+
         // 名称预览缓存
         this.namePreviewCache = new Map();
         this.namePreviewPromises = new Map();
@@ -211,7 +211,7 @@ export class VirtualScrollManager {
 
         // 清空容器
         this.container.innerHTML = '';
-        
+
         // 创建虚拟滚动容器（这是实际滚动的容器）
         const virtualContainer = document.createElement('div');
         virtualContainer.className = 'virtual-scroll-container';
@@ -220,11 +220,12 @@ export class VirtualScrollManager {
         virtualContainer.style.width = '100%';
         virtualContainer.style.flex = '1';
         virtualContainer.style.minHeight = '0';
+        virtualContainer.style.overflow = 'auto'; // 添加滚动功能
         this.container.appendChild(virtualContainer);
-        
+
         // 更新 this.container 指向虚拟滚动容器
         this.container = virtualContainer;
-        
+
         // 创建内容元素（用于撑开滚动区域）- 关键！
         this.content = document.createElement('div');
         this.content.className = 'virtual-scroll-content';
@@ -237,9 +238,9 @@ export class VirtualScrollManager {
         this.content.style.pointerEvents = 'none';
         this.content.style.zIndex = '0';
         this.container.appendChild(this.content);
-        
+
         console.log(`Created content element with height=${this.content.style.height}, scrollHeight=${this.content.scrollHeight}`);
-        
+
         // 创建视口元素（用于显示内容）
         this.viewport = document.createElement('div');
         this.viewport.className = 'virtual-scroll-viewport';
@@ -252,44 +253,44 @@ export class VirtualScrollManager {
         this.viewport.style.pointerEvents = 'none';
         this.viewport.style.zIndex = '1';
         this.container.appendChild(this.viewport);
-        
+
         // 保存原始容器的引用（即 virtual-scroll-container）
         this.scrollContainer = this.container;
-        
+
         // 验证容器有正确的高度
         let computedHeight = this.container.clientHeight;
         if (computedHeight === 0 || computedHeight < 100) {
             // 如果容器高度为0或太小，尝试多种方法获取高度
             const computedStyle = window.getComputedStyle(this.container);
             const styleHeight = parseFloat(computedStyle.height);
-            
+
             if (styleHeight > 0) {
                 computedHeight = styleHeight;
             } else if (this.container.parentElement) {
                 computedHeight = this.container.parentElement.clientHeight;
             }
-            
+
             // 设置最小高度
             if (computedHeight < 200) {
                 computedHeight = 500;
             }
-            
+
             this.container.style.height = `${computedHeight}px`;
         }
-        
+
         this.data.containerHeight = computedHeight;
-        
+
         // 计算可见行数
         this.data.visibleLines = Math.ceil(this.data.containerHeight / this.data.lineHeight) + 100;
-        
+
         console.log(`VirtualScroll init FINAL: containerHeight=${this.data.containerHeight}px, contentHeight=${this.content.scrollHeight}px, lineHeight=${this.data.lineHeight}px, visibleLines=${this.data.visibleLines}, totalLines=${lines.length}`);
 
         // 初始渲染
         this.renderVisibleLines(0, 0);
-        
+
         // 绑定事件
         this.bindEvents();
-        
+
         // 设置缩放支持
         this.setupZoom();
 
@@ -300,7 +301,7 @@ export class VirtualScrollManager {
         // 监听scroll事件（在 scrollContainer 上）
         this.scrollContainer.addEventListener('scroll', () => {
             this.savedScrollLeft = this.scrollContainer.scrollLeft;
-            
+
             clearTimeout(this.scrollTimeout);
             this.scrollTimeout = setTimeout(() => {
                 this.renderVisibleLines(this.scrollContainer.scrollTop, this.savedScrollLeft);
@@ -325,30 +326,30 @@ export class VirtualScrollManager {
             this.data.containerHeight = this.scrollContainer.clientHeight;
             this.data.visibleLines = Math.ceil(this.data.containerHeight / this.data.lineHeight) + 100;
             this.renderVisibleLines(this.scrollContainer.scrollTop, this.scrollContainer.scrollLeft);
-            
+
             // 窗口大小变化时更新内容宽度
             requestAnimationFrame(() => this.updateContentWidth());
         };
-        
+
         window.addEventListener('resize', this.resizeHandler);
     }
-    
+
     setupZoom() {
         // 设置缩放管理器的目标容器
         zoomManager.setTarget(this.viewport);
-        
+
         // 设置缩放变化回调
         zoomManager.setZoomCallback((scale) => {
             // 缩放后重新渲染内容
             this.renderVisibleLines(this.scrollContainer.scrollTop, this.scrollContainer.scrollLeft);
-            
+
             // 缩放后更新内容宽度
             requestAnimationFrame(() => this.updateContentWidth());
         });
-        
+
         // 设置捏合缩放
         zoomManager.setupPinchZoom(this.scrollContainer);
-        
+
         // 设置键盘缩放（只初始化一次）
         if (!zoomManager.keyboardInitialized) {
             zoomManager.setupKeyboardZoom();
@@ -358,12 +359,12 @@ export class VirtualScrollManager {
 
     renderVisibleLines(scrollTop, savedScrollLeft = 0) {
         if (!this.viewport || !this.scrollContainer) return;
-        
+
         // 如果没有传入savedScrollLeft，使用当前值
         if (typeof savedScrollLeft !== 'number' || savedScrollLeft === 0) {
             savedScrollLeft = this.scrollContainer.scrollLeft || 0;
         }
-        
+
         // 确保滚动位置在有效范围内
         const maxScrollTop = Math.max(0, this.data.totalHeight - this.data.containerHeight);
         scrollTop = Math.min(Math.max(0, scrollTop), maxScrollTop);
@@ -379,16 +380,16 @@ export class VirtualScrollManager {
         if (this.data.lines.length - startLine < this.data.visibleLines) {
             endLine = this.data.lines.length;
         }
-        
+
         // 计算视口位置
         const viewportTop = startLine * this.data.lineHeight;
         const viewportHeight = (endLine - startLine) * this.data.lineHeight;
-        
+
         this.viewport.style.top = `${viewportTop}px`;
         this.viewport.style.height = `${viewportHeight}px`;
-        
+
         console.log(`Render: scrollTop=${scrollTop.toFixed(1)}, startLine=${startLine}, endLine=${endLine}, rendered=${endLine - startLine}/${this.data.lines.length}`);
-        
+
         // 构建HTML
         let linesHtml = `<div class="code-with-lines ${this.data.languageClass}">`;
         let lineNumbersHtml = '<div class="line-numbers">';
@@ -409,7 +410,7 @@ export class VirtualScrollManager {
 
         // 立即应用缩放，避免闪烁
         zoomManager.applyScale();
-        
+
         // 更新内容宽度
         this.updateContentWidth();
 
@@ -417,7 +418,7 @@ export class VirtualScrollManager {
         if (typeof Prism !== 'undefined') {
             requestAnimationFrame(() => {
                 applySyntaxHighlighting(this.viewport);
-                
+
                 // 在语法高亮后应用空白字符显示
                 if (this.data.showWhitespace) {
                     applyWhitespaceDisplay(this.viewport);
@@ -487,7 +488,12 @@ export class VirtualScrollManager {
                             const link = document.createElement('span');
                             link.className = 'path-link';
                             link.textContent = path;
+                            link.style.pointerEvents = 'auto';
+                            link.style.cursor = 'pointer';
+                            link.style.color = '#4ec9b0';
+                            link.style.textDecoration = 'underline';
                             link.addEventListener('click', (e) => {
+                                e.preventDefault();
                                 e.stopPropagation();
                                 if (this.onPathClick) {
                                     this.onPathClick(path);
@@ -523,13 +529,13 @@ export class VirtualScrollManager {
                         this.loadNamePreview(previewElement.dataset.path, previewElement);
                     });
                 }
-                
+
                 // 恢复scrollLeft（在DOM操作后）
                 requestAnimationFrame(() => {
                     if (this.scrollContainer.scrollLeft !== savedScrollLeft) {
                         this.scrollContainer.scrollLeft = savedScrollLeft;
                     }
-                    
+
                     // 确保缩放状态正确（语法高亮可能会影响DOM结构）
                     requestAnimationFrame(() => {
                         zoomManager.applyScale();
@@ -565,40 +571,40 @@ export class VirtualScrollManager {
         this.data.languageClass = languageClass;
         this.data.showWhitespace = showWhitespace;
         this.data.totalHeight = lines.length * this.data.lineHeight;
-        
+
         if (this.content) {
             this.content.style.height = `${this.data.totalHeight}px`;
         }
-        
+
         this.renderVisibleLines(this.scrollContainer.scrollTop, this.scrollContainer.scrollLeft);
     }
-    
+
     updateContentWidth() {
         if (!this.viewport || !this.content) return;
-        
+
         // 获取代码内容的实际宽度
         const codeWithLines = this.viewport.querySelector('.code-with-lines');
         if (codeWithLines) {
             // 临时移除transform以获取未缩放的宽度
             const originalTransform = codeWithLines.style.transform;
             codeWithLines.style.transform = 'none';
-            
+
             const contentWidth = codeWithLines.scrollWidth;
             const currentContentWidth = this.content.clientWidth;
-            
+
             // 恢复transform
             codeWithLines.style.transform = originalTransform;
-            
+
             // 考虑缩放比例，计算目标宽度
             const targetWidth = contentWidth * zoomManager.scale + 500;
-            
+
             // 只在内容宽度真正变化时才更新
             if (Math.abs(targetWidth - currentContentWidth) > 10) {
                 // 保存当前的滚动位置
                 const savedScrollLeft = this.scrollContainer.scrollLeft;
-                
+
                 this.content.style.width = `${targetWidth}px`;
-                
+
                 // 恢复滚动位置
                 this.scrollContainer.scrollLeft = savedScrollLeft;
             }

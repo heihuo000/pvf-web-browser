@@ -25875,6 +25875,7 @@ var CodeMirrorViewer = class {
     this.themeCompartment = new Compartment();
     this.languageCompartment = new Compartment();
     this.whitespaceCompartment = new Compartment();
+    this.editableCompartment = new Compartment();
   }
   /**
    * 初始化 CodeMirror 编辑器
@@ -25888,6 +25889,7 @@ var CodeMirrorViewer = class {
     container.innerHTML = "";
     const extensions = [
       basicSetup,
+      this.editableCompartment.of(EditorView.editable.of(false)),
       // 自定义主题
       EditorView.theme({
         "&": {
@@ -25919,11 +25921,14 @@ var CodeMirrorViewer = class {
         ".cm-cursor": {
           borderLeftColor: "#aeafad"
         },
+        "&::selection": {
+          backgroundColor: "#3e6fa6"
+        },
         ".cm-selectionBackground": {
-          backgroundColor: "#264f78"
+          backgroundColor: "#3e6fa6 !important"
         },
         ".cm-selectionMatch": {
-          backgroundColor: "#264f78"
+          backgroundColor: "#3e6fa6 !important"
         },
         ".cm-scroller": {
           fontFamily: "Consolas, Monaco, monospace",
@@ -25944,10 +25949,12 @@ var CodeMirrorViewer = class {
           background: "#4e4e4e"
         }
       }, { dark: true }),
+      // 选择高亮渲染
+      drawSelection(),
+      highlightSelectionMatches(),
       // 语法高亮
       syntaxHighlighting(customHighlightStyle),
       syntaxHighlighting(defaultHighlightStyle),
-      highlightSelectionMatches(),
       // 空白字符显示
       whitespacePlugin,
       whitespaceTheme,
@@ -26085,17 +26092,567 @@ var CodeMirrorViewer = class {
       effects: this.whitespaceCompartment.reconfigure(extension)
     });
   }
+  /**
+   * 设置编辑模式
+   * @param {boolean} editable - true 为可编辑模式，false 为只读模式
+   */
+  setEditable(editable2) {
+    if (!this.view) {
+      return;
+    }
+    this.view.dispatch({
+      effects: this.editableCompartment.reconfigure(
+        EditorView.editable.of(editable2)
+      )
+    });
+  }
+  /**
+   * 获取当前编辑状态
+   * @returns {boolean} 是否可编辑
+   */
+  isEditable() {
+    if (!this.view) {
+      return false;
+    }
+    return this.view.state.facet(EditorView.editable);
+  }
+  /**
+   * 获取当前内容
+   * @returns {string} 编辑器内容
+   */
+  getContent() {
+    if (!this.view) {
+      return "";
+    }
+    return this.view.state.doc.toString();
+  }
 };
 var codemirror_viewer_default = CodeMirrorViewer;
+
+// public/js/virtual-scroll.js
+var ZoomManager = class {
+  constructor() {
+    this.scale = 1;
+    this.minScale = 0.5;
+    this.maxScale = 3;
+    this.pinchDistance = 0;
+    this.isPinching = false;
+    this.onZoomChange = null;
+    this.targetElement = null;
+    this.loadScale();
+  }
+  setTarget(element) {
+    this.targetElement = element;
+    this.applyScale();
+  }
+  setZoomCallback(callback) {
+    this.onZoomChange = callback;
+  }
+  zoomIn() {
+    this.scale = Math.min(this.scale + 0.1, this.maxScale);
+    this.applyScale();
+    this.saveScale();
+    if (this.onZoomChange) {
+      this.onZoomChange(this.scale);
+    }
+  }
+  zoomOut() {
+    this.scale = Math.max(this.scale - 0.1, this.minScale);
+    this.applyScale();
+    this.saveScale();
+    if (this.onZoomChange) {
+      this.onZoomChange(this.scale);
+    }
+  }
+  zoomTo(newScale) {
+    this.scale = Math.max(this.minScale, Math.min(newScale, this.maxScale));
+    this.applyScale();
+    this.saveScale();
+    if (this.onZoomChange) {
+      this.onZoomChange(this.scale);
+    }
+  }
+  reset() {
+    this.scale = 1;
+    this.applyScale();
+    this.saveScale();
+    if (this.onZoomChange) {
+      this.onZoomChange(this.scale);
+    }
+  }
+  applyScale() {
+    if (!this.targetElement) return;
+    const codeWithLines = this.targetElement.querySelector(".code-with-lines");
+    if (codeWithLines) {
+      const currentTransform = codeWithLines.style.transform;
+      const newTransform = `scale(${this.scale})`;
+      if (currentTransform !== newTransform) {
+        codeWithLines.style.transform = newTransform;
+        codeWithLines.style.transformOrigin = "top left";
+      }
+    }
+  }
+  setupPinchZoom(element) {
+    if (!element) return;
+    element.addEventListener("touchstart", (e) => {
+      if (e.touches.length === 2) {
+        this.isPinching = true;
+        this.pinchDistance = this.getDistance(e.touches[0], e.touches[1]);
+        e.preventDefault();
+      }
+    }, { passive: false });
+    element.addEventListener("touchmove", (e) => {
+      if (this.isPinching && e.touches.length === 2) {
+        const currentDistance = this.getDistance(e.touches[0], e.touches[1]);
+        const delta = currentDistance - this.pinchDistance;
+        const sensitivity = 5e-3;
+        const newScale = this.scale + delta * sensitivity;
+        this.zoomTo(newScale);
+        this.pinchDistance = currentDistance;
+        e.preventDefault();
+      }
+    }, { passive: false });
+    element.addEventListener("touchend", (e) => {
+      if (e.touches.length < 2) {
+        this.isPinching = false;
+      }
+    });
+  }
+  setupKeyboardZoom() {
+    document.addEventListener("keydown", (e) => {
+      if ((e.ctrlKey || e.metaKey) && (e.key === "+" || e.key === "=")) {
+        e.preventDefault();
+        this.zoomIn();
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === "-") {
+        e.preventDefault();
+        this.zoomOut();
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === "0") {
+        e.preventDefault();
+        this.reset();
+      }
+    });
+  }
+  getDistance(touch1, touch2) {
+    const dx = touch1.clientX - touch2.clientX;
+    const dy = touch1.clientY - touch2.clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+  }
+  saveScale() {
+    try {
+      localStorage.setItem("pvf-zoom-scale", this.scale.toString());
+    } catch (e) {
+      console.warn("Failed to save zoom scale:", e);
+    }
+  }
+  loadScale() {
+    try {
+      const saved = localStorage.getItem("pvf-zoom-scale");
+      if (saved) {
+        this.scale = Math.max(this.minScale, Math.min(parseFloat(saved), this.maxScale));
+      }
+    } catch (e) {
+      console.warn("Failed to load zoom scale:", e);
+    }
+  }
+};
+var zoomManager = new ZoomManager();
+var VirtualScrollManager = class {
+  constructor() {
+    this.container = null;
+    this.viewport = null;
+    this.currentFileName = "";
+    this.data = {
+      lines: [],
+      languageClass: "",
+      showWhitespace: false,
+      lineHeight: 19.2,
+      // 与CSS中的line-height一致 (1.6 * 12px)
+      containerHeight: 0,
+      visibleLines: 0
+    };
+    this.savedScrollLeft = 0;
+    this.scrollTimeout = null;
+    this.onScroll = null;
+    this.onPathClick = null;
+    this.namePreviewCache = /* @__PURE__ */ new Map();
+    this.namePreviewPromises = /* @__PURE__ */ new Map();
+  }
+  init(containerId, lines, languageClass, showWhitespace, callbacks = {}) {
+    this.container = document.getElementById(containerId);
+    if (!this.container) {
+      console.error(`Container with id "${containerId}" not found`);
+      return false;
+    }
+    this.container.style.display = "flex";
+    this.container.style.flexDirection = "column";
+    this.container.style.flex = "1";
+    this.container.style.minHeight = "0";
+    this.container.style.overflow = "hidden";
+    if (callbacks.namePreviewCache && callbacks.namePreviewPromises) {
+      this.namePreviewCache = callbacks.namePreviewCache;
+      this.namePreviewPromises = callbacks.namePreviewPromises;
+    }
+    this.currentFileName = callbacks.currentFile || "";
+    this.data.lines = lines;
+    this.data.languageClass = languageClass;
+    this.data.showWhitespace = showWhitespace;
+    this.data.totalHeight = lines.length * this.data.lineHeight;
+    this.onScroll = callbacks.onScroll;
+    this.onPathClick = callbacks.onPathClick;
+    console.log(`VirtualScroll init START: container=${containerId}, clientHeight=${this.container.clientHeight}, totalLines=${lines.length}, totalHeight=${this.data.totalHeight}px`);
+    this.container.innerHTML = "";
+    const virtualContainer = document.createElement("div");
+    virtualContainer.className = "virtual-scroll-container";
+    virtualContainer.style.position = "relative";
+    virtualContainer.style.height = "100%";
+    virtualContainer.style.width = "100%";
+    virtualContainer.style.flex = "1";
+    virtualContainer.style.minHeight = "0";
+    virtualContainer.style.overflow = "auto";
+    this.container.appendChild(virtualContainer);
+    this.container = virtualContainer;
+    this.content = document.createElement("div");
+    this.content.className = "virtual-scroll-content";
+    this.content.style.height = `${this.data.totalHeight}px`;
+    this.content.style.minHeight = `${this.data.totalHeight}px`;
+    this.content.style.position = "absolute";
+    this.content.style.top = "0";
+    this.content.style.left = "0";
+    this.content.style.width = "100%";
+    this.content.style.pointerEvents = "none";
+    this.content.style.zIndex = "0";
+    this.container.appendChild(this.content);
+    console.log(`Created content element with height=${this.content.style.height}, scrollHeight=${this.content.scrollHeight}`);
+    this.viewport = document.createElement("div");
+    this.viewport.className = "virtual-scroll-viewport";
+    this.viewport.style.position = "absolute";
+    this.viewport.style.top = "0";
+    this.viewport.style.left = "0";
+    this.viewport.style.width = "100%";
+    this.viewport.style.pointerEvents = "none";
+    this.viewport.style.zIndex = "1";
+    this.container.appendChild(this.viewport);
+    this.scrollContainer = this.container;
+    let computedHeight = this.container.clientHeight;
+    if (computedHeight === 0 || computedHeight < 100) {
+      const computedStyle = window.getComputedStyle(this.container);
+      const styleHeight = parseFloat(computedStyle.height);
+      if (styleHeight > 0) {
+        computedHeight = styleHeight;
+      } else if (this.container.parentElement) {
+        computedHeight = this.container.parentElement.clientHeight;
+      }
+      if (computedHeight < 200) {
+        computedHeight = 500;
+      }
+      this.container.style.height = `${computedHeight}px`;
+    }
+    this.data.containerHeight = computedHeight;
+    this.data.visibleLines = Math.ceil(this.data.containerHeight / this.data.lineHeight) + 100;
+    console.log(`VirtualScroll init FINAL: containerHeight=${this.data.containerHeight}px, contentHeight=${this.content.scrollHeight}px, lineHeight=${this.data.lineHeight}px, visibleLines=${this.data.visibleLines}, totalLines=${lines.length}`);
+    this.renderVisibleLines(0, 0);
+    this.bindEvents();
+    this.setupZoom();
+    return true;
+  }
+  bindEvents() {
+    this.scrollContainer.addEventListener("scroll", () => {
+      this.savedScrollLeft = this.scrollContainer.scrollLeft;
+      clearTimeout(this.scrollTimeout);
+      this.scrollTimeout = setTimeout(() => {
+        this.renderVisibleLines(this.scrollContainer.scrollTop, this.savedScrollLeft);
+        if (this.onScroll) {
+          this.onScroll(this.scrollContainer.scrollTop, this.scrollContainer.scrollLeft);
+        }
+      }, 16);
+    }, { passive: true });
+    let touchStartScrollLeft = 0;
+    this.scrollContainer.addEventListener("touchstart", (e) => {
+      touchStartScrollLeft = this.scrollContainer.scrollLeft;
+    }, { passive: true });
+    this.scrollContainer.addEventListener("touchend", () => {
+      this.savedScrollLeft = this.scrollContainer.scrollLeft;
+    }, { passive: true });
+    this.resizeHandler = () => {
+      this.data.containerHeight = this.scrollContainer.clientHeight;
+      this.data.visibleLines = Math.ceil(this.data.containerHeight / this.data.lineHeight) + 100;
+      this.renderVisibleLines(this.scrollContainer.scrollTop, this.scrollContainer.scrollLeft);
+      requestAnimationFrame(() => this.updateContentWidth());
+    };
+    window.addEventListener("resize", this.resizeHandler);
+  }
+  setupZoom() {
+    zoomManager.setTarget(this.viewport);
+    zoomManager.setZoomCallback((scale) => {
+      this.renderVisibleLines(this.scrollContainer.scrollTop, this.scrollContainer.scrollLeft);
+      requestAnimationFrame(() => this.updateContentWidth());
+    });
+    zoomManager.setupPinchZoom(this.scrollContainer);
+    if (!zoomManager.keyboardInitialized) {
+      zoomManager.setupKeyboardZoom();
+      zoomManager.keyboardInitialized = true;
+    }
+  }
+  renderVisibleLines(scrollTop, savedScrollLeft = 0) {
+    if (!this.viewport || !this.scrollContainer) return;
+    if (typeof savedScrollLeft !== "number" || savedScrollLeft === 0) {
+      savedScrollLeft = this.scrollContainer.scrollLeft || 0;
+    }
+    const maxScrollTop = Math.max(0, this.data.totalHeight - this.data.containerHeight);
+    scrollTop = Math.min(Math.max(0, scrollTop), maxScrollTop);
+    const startLine = Math.floor(scrollTop / this.data.lineHeight);
+    let endLine = Math.min(startLine + this.data.visibleLines, this.data.lines.length);
+    if (this.data.lines.length - startLine < this.data.visibleLines) {
+      endLine = this.data.lines.length;
+    }
+    const viewportTop = startLine * this.data.lineHeight;
+    const viewportHeight = (endLine - startLine) * this.data.lineHeight;
+    this.viewport.style.top = `${viewportTop}px`;
+    this.viewport.style.height = `${viewportHeight}px`;
+    console.log(`Render: scrollTop=${scrollTop.toFixed(1)}, startLine=${startLine}, endLine=${endLine}, rendered=${endLine - startLine}/${this.data.lines.length}`);
+    let linesHtml = `<div class="code-with-lines ${this.data.languageClass}">`;
+    let lineNumbersHtml = '<div class="line-numbers">';
+    let codeContentHtml = '<div class="code-content">';
+    for (let i = startLine; i < endLine; i++) {
+      const line = this.data.lines[i] || "";
+      lineNumbersHtml += `<div class="line-number">${i + 1}</div>`;
+      const displayLine = this.escapeHtml(line);
+      codeContentHtml += `<div class="code-line">${displayLine}</div>`;
+    }
+    lineNumbersHtml += "</div>";
+    codeContentHtml += "</div>";
+    linesHtml += lineNumbersHtml + codeContentHtml + "</div>";
+    this.viewport.innerHTML = linesHtml;
+    zoomManager.applyScale();
+    this.updateContentWidth();
+    if (typeof Prism !== "undefined") {
+      requestAnimationFrame(() => {
+        applySyntaxHighlighting(this.viewport);
+        if (this.data.showWhitespace) {
+          applyWhitespaceDisplay(this.viewport);
+        }
+        const container = this.viewport;
+        const pathRegex = /`([^`]*?\/?[^`]*?\.[a-zA-Z0-9]+)`|"([^"]*?\/?[^"]*?\.[a-zA-Z0-9]+)"|'([^']*?\/?[^']*?\.[a-zA-Z0-9]+)'/gi;
+        const walker = document.createTreeWalker(
+          container,
+          NodeFilter.SHOW_TEXT,
+          {
+            acceptNode: function(node2) {
+              if (node2.textContent && !node2.textContent.includes("<") && pathRegex.test(node2.textContent)) {
+                return NodeFilter.FILTER_ACCEPT;
+              }
+              return NodeFilter.FILTER_REJECT;
+            }
+          },
+          false
+        );
+        const textNodes = [];
+        let node;
+        while (node = walker.nextNode()) {
+          textNodes.push(node);
+        }
+        const isLstFile = this.currentFileName && this.currentFileName.toLowerCase().endsWith(".lst");
+        textNodes.forEach((textNode) => {
+          const parent = textNode.parentNode;
+          if (parent) {
+            const fragment = document.createDocumentFragment();
+            let lastIndex = 0;
+            let match;
+            pathRegex.lastIndex = 0;
+            while ((match = pathRegex.exec(textNode.textContent)) !== null) {
+              if (match.index > lastIndex) {
+                fragment.appendChild(document.createTextNode(textNode.textContent.substring(lastIndex, match.index)));
+              }
+              const fullPath = match[0];
+              const backtickPath = match[1];
+              const doubleQuotePath = match[2];
+              const singleQuotePath = match[3];
+              let path, quoteChar;
+              if (backtickPath) {
+                path = backtickPath;
+                quoteChar = "`";
+              } else if (doubleQuotePath) {
+                path = doubleQuotePath;
+                quoteChar = '"';
+              } else if (singleQuotePath) {
+                path = singleQuotePath;
+                quoteChar = "'";
+              } else {
+                continue;
+              }
+              fragment.appendChild(document.createTextNode(quoteChar));
+              const link = document.createElement("span");
+              link.className = "path-link";
+              link.textContent = path;
+              link.style.pointerEvents = "auto";
+              link.style.cursor = "pointer";
+              link.style.color = "#4ec9b0";
+              link.style.textDecoration = "underline";
+              link.addEventListener("click", (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (this.onPathClick) {
+                  this.onPathClick(path);
+                }
+              });
+              fragment.appendChild(link);
+              fragment.appendChild(document.createTextNode(quoteChar));
+              if (isLstFile) {
+                const namePreview = document.createElement("span");
+                namePreview.className = "name-preview";
+                namePreview.textContent = " \u52A0\u8F7D\u4E2D...";
+                namePreview.dataset.path = path;
+                fragment.appendChild(namePreview);
+              }
+              lastIndex = match.index + fullPath.length;
+            }
+            if (lastIndex < textNode.textContent.length) {
+              fragment.appendChild(document.createTextNode(textNode.textContent.substring(lastIndex)));
+            }
+            parent.replaceChild(fragment, textNode);
+          }
+        });
+        if (isLstFile) {
+          container.querySelectorAll(".name-preview[data-path]").forEach((previewElement) => {
+            this.loadNamePreview(previewElement.dataset.path, previewElement);
+          });
+        }
+        requestAnimationFrame(() => {
+          if (this.scrollContainer.scrollLeft !== savedScrollLeft) {
+            this.scrollContainer.scrollLeft = savedScrollLeft;
+          }
+          requestAnimationFrame(() => {
+            zoomManager.applyScale();
+          });
+        });
+      });
+    }
+  }
+  escapeHtml(text) {
+    const div = document.createElement("div");
+    div.textContent = text;
+    return div.innerHTML;
+  }
+  destroy() {
+    if (this.resizeHandler) {
+      window.removeEventListener("resize", this.resizeHandler);
+    }
+    if (this.scrollTimeout) {
+      clearTimeout(this.scrollTimeout);
+    }
+    if (this.scrollContainer) {
+      this.scrollContainer.innerHTML = "";
+    }
+    this.namePreviewPromises.clear();
+  }
+  updateLines(lines, languageClass, showWhitespace) {
+    this.data.lines = lines;
+    this.data.languageClass = languageClass;
+    this.data.showWhitespace = showWhitespace;
+    this.data.totalHeight = lines.length * this.data.lineHeight;
+    if (this.content) {
+      this.content.style.height = `${this.data.totalHeight}px`;
+    }
+    this.renderVisibleLines(this.scrollContainer.scrollTop, this.scrollContainer.scrollLeft);
+  }
+  updateContentWidth() {
+    if (!this.viewport || !this.content) return;
+    const codeWithLines = this.viewport.querySelector(".code-with-lines");
+    if (codeWithLines) {
+      const originalTransform = codeWithLines.style.transform;
+      codeWithLines.style.transform = "none";
+      const contentWidth = codeWithLines.scrollWidth;
+      const currentContentWidth = this.content.clientWidth;
+      codeWithLines.style.transform = originalTransform;
+      const targetWidth = contentWidth * zoomManager.scale + 500;
+      if (Math.abs(targetWidth - currentContentWidth) > 10) {
+        const savedScrollLeft = this.scrollContainer.scrollLeft;
+        this.content.style.width = `${targetWidth}px`;
+        this.scrollContainer.scrollLeft = savedScrollLeft;
+      }
+    }
+  }
+  async loadNamePreview(path, previewElement) {
+    if (!previewElement) return;
+    if (this.namePreviewCache.has(path)) {
+      const cachedName = this.namePreviewCache.get(path);
+      if (cachedName) {
+        previewElement.textContent = "  " + cachedName;
+        previewElement.style.display = "inline";
+      } else {
+        previewElement.textContent = "";
+        previewElement.style.display = "none";
+      }
+      return;
+    }
+    if (this.namePreviewPromises.has(path)) {
+      const promise2 = this.namePreviewPromises.get(path);
+      const name3 = await promise2;
+      if (name3) {
+        previewElement.textContent = name3;
+        previewElement.style.display = "inline";
+      } else {
+        previewElement.textContent = "";
+        previewElement.style.display = "none";
+      }
+      return;
+    }
+    const promise = (async () => {
+      try {
+        const response = await fetch(`/api/file?key=${encodeURIComponent(path)}`);
+        const data = await response.json();
+        const content2 = data.content;
+        const nameMatch = content2.match(/\[name\]\s*\n\s*(.+?)(?:\n|$)/i);
+        if (nameMatch && nameMatch[1]) {
+          const name3 = nameMatch[1].trim().replace(/^["'`]|["'`]$/g, "");
+          this.namePreviewCache.set(path, name3);
+          return name3;
+        }
+        const commentMatch = content2.match(/^--.*?名称\s*[：:]\s*(.+?)(?:\n|$)/im);
+        if (commentMatch && commentMatch[1]) {
+          const name3 = commentMatch[1].trim();
+          this.namePreviewCache.set(path, name3);
+          return name3;
+        }
+        this.namePreviewCache.set(path, "");
+        return "";
+      } catch (error) {
+        console.error("\u52A0\u8F7D\u540D\u79F0\u9884\u89C8\u5931\u8D25:", error);
+        this.namePreviewCache.set(path, "");
+        return "";
+      } finally {
+        this.namePreviewPromises.delete(path);
+      }
+    })();
+    this.namePreviewPromises.set(path, promise);
+    const name2 = await promise;
+    if (name2) {
+      previewElement.textContent = name2;
+      previewElement.style.display = "inline";
+    } else {
+      previewElement.textContent = "";
+      previewElement.style.display = "none";
+    }
+  }
+};
 
 // public/js/viewer-manager.js
 var ViewerManager = class {
   constructor() {
     this.codemirrorViewer = new codemirror_viewer_default();
+    this.virtualScrollViewer = new VirtualScrollManager();
     this.currentViewer = this.codemirrorViewer;
+    this.currentViewerType = "codemirror";
     this.onPathClick = null;
     this.globalNamePreviewCache = null;
     this.globalNamePreviewPromises = null;
+    this.currentFile = null;
+    this.currentContent = null;
+    this.currentLines = null;
+    this.currentLanguageClass = null;
+    this.currentShowWhitespace = null;
   }
   initialize(containerId) {
     this.container = document.getElementById(containerId);
@@ -26103,13 +26660,71 @@ var ViewerManager = class {
       console.error(`Container with id "${containerId}" not found`);
       return false;
     }
-    this.codemirrorViewer.initialize(this.container);
+    if (this.currentViewerType === "codemirror") {
+      this.codemirrorViewer.initialize(this.container);
+    } else {
+    }
     if (this.onPathClick) {
       this.setPathClickCallback(this.onPathClick);
     }
     return true;
   }
+  /**
+   * 切换查看器类型
+   * @param {string} viewerType - 'virtual' 或 'codemirror'
+   */
+  switchViewer(viewerType) {
+    if (viewerType === this.currentViewerType) {
+      return;
+    }
+    if (this.currentViewerType === "codemirror") {
+      this.codemirrorViewer.destroy();
+    } else {
+      this.virtualScrollViewer.destroy();
+    }
+    this.currentViewerType = viewerType;
+    if (this.container) {
+      this.container.innerHTML = "";
+    }
+    if (viewerType === "codemirror") {
+      this.currentViewer = this.codemirrorViewer;
+      this.codemirrorViewer.initialize(this.container);
+      if (this.onPathClick) {
+        this.codemirrorViewer.setOnPathClick(this.onPathClick);
+      }
+      if (this.currentContent) {
+        const filename = this.currentFile ? this.currentFile.split("/").pop() : "";
+        this.codemirrorViewer.loadFile(this.currentContent, filename);
+        if (this.onPathClick) {
+          this.codemirrorViewer.setOnPathClick(this.onPathClick);
+        }
+      }
+    } else {
+      this.currentViewer = this.virtualScrollViewer;
+      if (this.currentLines) {
+        this.virtualScrollViewer.init("fileViewer", this.currentLines, this.currentLanguageClass, this.currentShowWhitespace, {
+          currentFile: this.currentFile,
+          namePreviewCache: this.globalNamePreviewCache,
+          namePreviewPromises: this.globalNamePreviewPromises,
+          onPathClick: this.onPathClick
+        });
+      }
+    }
+    console.log(`Switched to ${viewerType} viewer`);
+  }
+  /**
+   * 获取当前查看器类型
+   * @returns {string} 'virtual' 或 'codemirror'
+   */
+  getCurrentViewerType() {
+    return this.currentViewerType;
+  }
   loadFile(key, content2, lines, languageClass, showWhitespace, options = {}) {
+    this.currentFile = key;
+    this.currentContent = content2;
+    this.currentLines = lines;
+    this.currentLanguageClass = languageClass;
+    this.currentShowWhitespace = showWhitespace;
     const filename = key.split("/").pop();
     if (options.namePreviewCache) {
       this.globalNamePreviewCache = options.namePreviewCache;
@@ -26119,20 +26734,31 @@ var ViewerManager = class {
     }
     if (options.onPathClick) {
       this.onPathClick = options.onPathClick;
-      this.codemirrorViewer.setOnPathClick(options.onPathClick);
     }
-    const loaded = this.codemirrorViewer.loadFile(content2, filename);
-    if (!loaded) {
-      console.warn("CodeMirror load failed, reinitializing...");
-      if (this.container) {
-        this.codemirrorViewer.initialize(this.container);
-        this.codemirrorViewer.loadFile(content2, filename);
+    if (this.currentViewerType === "codemirror") {
+      this.codemirrorViewer.setOnPathClick(options.onPathClick);
+      const loaded = this.codemirrorViewer.loadFile(content2, filename);
+      if (!loaded) {
+        console.warn("CodeMirror load failed, reinitializing...");
+        if (this.container) {
+          this.codemirrorViewer.initialize(this.container);
+          this.codemirrorViewer.loadFile(content2, filename);
+        }
       }
+    } else {
+      this.virtualScrollViewer.init("fileViewer", lines, languageClass, showWhitespace, {
+        currentFile: key,
+        namePreviewCache: this.globalNamePreviewCache,
+        namePreviewPromises: this.globalNamePreviewPromises,
+        onPathClick: options.onPathClick
+      });
     }
   }
   setPathClickCallback(callback) {
     this.onPathClick = callback;
-    this.codemirrorViewer.setOnPathClick(callback);
+    if (this.currentViewerType === "codemirror") {
+      this.codemirrorViewer.setOnPathClick(callback);
+    }
   }
   setFileLoadCallback(callback) {
     this.onFileLoad = callback;
@@ -26142,18 +26768,53 @@ var ViewerManager = class {
     this.globalNamePreviewPromises = namePreviewPromises;
   }
   setZoom(level) {
-    this.codemirrorViewer.setZoom(level);
+    if (this.currentViewerType === "codemirror") {
+      this.codemirrorViewer.setZoom(level);
+    }
   }
   getZoom() {
-    return this.codemirrorViewer.getZoom();
+    if (this.currentViewerType === "codemirror") {
+      return this.codemirrorViewer.getZoom();
+    }
+    return 1;
   }
   setShowWhitespace(show) {
-    this.codemirrorViewer.setShowWhitespace(show);
+    if (this.currentViewerType === "codemirror") {
+      this.codemirrorViewer.setShowWhitespace(show);
+    }
+  }
+  /**
+   * 设置编辑模式
+   * @param {boolean} editable - true 为可编辑模式，false 为只读模式
+   */
+  setEditable(editable2) {
+    if (this.currentViewerType === "codemirror") {
+      this.codemirrorViewer.setEditable(editable2);
+    }
+  }
+  /**
+   * 获取当前编辑状态
+   * @returns {boolean} 是否可编辑
+   */
+  isEditable() {
+    if (this.currentViewerType === "codemirror") {
+      return this.codemirrorViewer.isEditable();
+    }
+    return false;
+  }
+  /**
+   * 获取当前内容
+   * @returns {string} 编辑器内容
+   */
+  getContent() {
+    if (this.currentViewerType === "codemirror") {
+      return this.codemirrorViewer.getContent();
+    }
+    return this.currentContent || "";
   }
   destroy() {
-    if (this.codemirrorViewer) {
-      this.codemirrorViewer.destroy();
-    }
+    this.codemirrorViewer.destroy();
+    this.virtualScrollViewer.destroy();
   }
 };
 
@@ -26199,6 +26860,7 @@ var elements = {
   toggleTagDescriptionsBtn: document.getElementById("toggleTagDescriptionsBtn"),
   addBookmarkBtn: document.getElementById("addBookmarkBtn"),
   advancedSearchBtn: document.getElementById("advancedSearchBtn"),
+  switchViewerBtn: document.getElementById("switchViewerBtn"),
   encodingSelect: document.getElementById("encodingSelect"),
   searchInput: document.getElementById("searchInput"),
   fileTree: document.getElementById("fileTree"),
@@ -26341,7 +27003,18 @@ function renderFileFromCache(key, cached) {
       updateStatus("\u6587\u4EF6\u672A\u627E\u5230: " + path);
     }
   });
-  viewerManager.loadFile(key, content2, lines, languageClass, showWhitespaceMode);
+  viewerManager.loadFile(key, content2, lines, languageClass, showWhitespaceMode, {
+    namePreviewCache: globalNamePreviewCache,
+    namePreviewPromises: globalNamePreviewPromises,
+    onPathClick: async (path) => {
+      const actualPath = await fileFormatter.findFileIgnoreCase(path);
+      if (actualPath) {
+        loadFileContent(actualPath);
+      } else {
+        updateStatus("\u6587\u4EF6\u672A\u627E\u5230: " + path);
+      }
+    }
+  });
   updateStatus(`${key.split("/").pop()} (${lineCount} \u884C)`);
 }
 function toggleSidebar(show) {
@@ -27037,25 +27710,48 @@ function init() {
     });
   }
   if (elements.editBtn) {
-    elements.editBtn.addEventListener("click", () => {
+    elements.editBtn.addEventListener("click", async () => {
       if (!currentFile) {
         alert("\u8BF7\u5148\u9009\u62E9\u4E00\u4E2A\u6587\u4EF6");
         return;
       }
-      document.getElementById("editFileName").textContent = currentFile.split("/").pop();
-      const cached = fileContentCache.get(currentFile);
-      if (cached) {
-        document.getElementById("editFileContent").value = cached.lines.join("\n");
-      } else {
-        API.getFile(currentFile).then((response) => {
-          if (response.content) {
-            document.getElementById("editFileContent").value = response.content.join("\n");
+      const currentEditable = viewerManager.isEditable();
+      if (currentEditable) {
+        try {
+          const newContent = viewerManager.getContent();
+          const response = await API.saveFile(currentFile, newContent, "utf8");
+          if (response.success || response.result === "success") {
+            updateStatus("\u6587\u4EF6\u4FDD\u5B58\u6210\u529F: " + currentFile);
+            const lines = newContent.split("\n");
+            fileContentCache.set(currentFile, {
+              content: newContent,
+              lines,
+              encoding: "utf8",
+              timestamp: Date.now()
+            });
+            viewerManager.setEditable(false);
+            elements.editBtn.textContent = "\u7F16\u8F91";
+          } else {
+            alert("\u4FDD\u5B58\u6587\u4EF6\u5931\u8D25: " + (response.message || response.error || "\u672A\u77E5\u9519\u8BEF"));
           }
-        }).catch((error) => {
-          alert("\u52A0\u8F7D\u6587\u4EF6\u5185\u5BB9\u5931\u8D25: " + error.message);
-        });
+        } catch (error) {
+          alert("\u4FDD\u5B58\u6587\u4EF6\u5931\u8D25: " + error.message);
+        }
+      } else {
+        viewerManager.setEditable(true);
+        elements.editBtn.textContent = "\u9884\u89C8";
+        updateStatus("\u8FDB\u5165\u7F16\u8F91\u6A21\u5F0F");
       }
-      modalManager.show("editModal");
+    });
+  }
+  if (elements.switchViewerBtn) {
+    elements.switchViewerBtn.addEventListener("click", () => {
+      const currentType = viewerManager.getCurrentViewerType();
+      const newType = currentType === "codemirror" ? "virtual" : "codemirror";
+      viewerManager.switchViewer(newType);
+      const viewerName = newType === "codemirror" ? "CM" : "VS";
+      elements.switchViewerBtn.textContent = viewerName;
+      updateStatus(`\u5DF2\u5207\u6362\u5230 ${newType === "codemirror" ? "CodeMirror" : "\u865A\u62DF\u6EDA\u52A8"} \u67E5\u770B\u5668`);
     });
   }
   if (elements.batchModeBtn) {

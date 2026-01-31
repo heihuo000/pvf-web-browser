@@ -1,10 +1,10 @@
 // CodeMirror Viewer - 替代当前的 FileFormatter
 // 使用 CodeMirror 6 实现更强大的文件查看器
 
-import { EditorView, basicSetup } from "codemirror";
+import { EditorView, basicSetup, EditorView as CMEditorView } from "codemirror";
 import { EditorState, StateField, StateEffect, RangeSetBuilder } from "@codemirror/state";
 import { Compartment } from "@codemirror/state";
-import { EditorView as CMEditorView, keymap, drawSelection, WidgetType, ViewPlugin, Decoration, highlightSpecialChars } from "@codemirror/view";
+import { keymap, drawSelection, WidgetType, ViewPlugin, Decoration, highlightSpecialChars } from "@codemirror/view";
 import { defaultKeymap } from "@codemirror/commands";
 import { searchKeymap, highlightSelectionMatches } from "@codemirror/search";
 import { syntaxHighlighting, defaultHighlightStyle, HighlightStyle } from "@codemirror/language";
@@ -359,6 +359,7 @@ class CodeMirrorViewer {
         this.themeCompartment = new Compartment();
         this.languageCompartment = new Compartment();
         this.whitespaceCompartment = new Compartment();
+        this.editableCompartment = new Compartment();
     }
 
     /**
@@ -375,9 +376,10 @@ class CodeMirrorViewer {
         // 清空容器内容（移除"empty"提示或其他旧内容）
         container.innerHTML = '';
 
-        // 使用官方推荐的 basicSetup
+        // 使用官方推荐的 basicSetup，但添加只读模式
         const extensions = [
             basicSetup,
+            this.editableCompartment.of(EditorView.editable.of(false)),
 
             // 自定义主题
             EditorView.theme({
@@ -409,11 +411,14 @@ class CodeMirrorViewer {
                 '.cm-cursor': {
                     borderLeftColor: '#aeafad'
                 },
+                '&::selection': {
+                    backgroundColor: '#3e6fa6'
+                },
                 '.cm-selectionBackground': {
-                    backgroundColor: '#264f78'
+                    backgroundColor: '#3e6fa6 !important'
                 },
                 '.cm-selectionMatch': {
-                    backgroundColor: '#264f78'
+                    backgroundColor: '#3e6fa6 !important'
                 },
                 '.cm-scroller': {
                     fontFamily: 'Consolas, Monaco, monospace',
@@ -435,10 +440,13 @@ class CodeMirrorViewer {
                 }
             }, { dark: true }),
 
+            // 选择高亮渲染
+            drawSelection(),
+            highlightSelectionMatches(),
+
             // 语法高亮
             syntaxHighlighting(customHighlightStyle),
             syntaxHighlighting(defaultHighlightStyle),
-            highlightSelectionMatches(),
 
             // 空白字符显示
             whitespacePlugin,
@@ -612,6 +620,43 @@ class CodeMirrorViewer {
         this.view.dispatch({
             effects: this.whitespaceCompartment.reconfigure(extension)
         });
+    }
+
+    /**
+     * 设置编辑模式
+     * @param {boolean} editable - true 为可编辑模式，false 为只读模式
+     */
+    setEditable(editable) {
+        if (!this.view) {
+            return;
+        }
+        this.view.dispatch({
+            effects: this.editableCompartment.reconfigure(
+                EditorView.editable.of(editable)
+            )
+        });
+    }
+
+    /**
+     * 获取当前编辑状态
+     * @returns {boolean} 是否可编辑
+     */
+    isEditable() {
+        if (!this.view) {
+            return false;
+        }
+        return this.view.state.facet(EditorView.editable);
+    }
+
+    /**
+     * 获取当前内容
+     * @returns {string} 编辑器内容
+     */
+    getContent() {
+        if (!this.view) {
+            return '';
+        }
+        return this.view.state.doc.toString();
     }
 }
 

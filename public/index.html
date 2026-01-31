@@ -728,35 +728,18 @@
             }
         }
 
-        /* 虚拟滚动容器 */
-        .virtual-scroll-container {
+        /* CodeMirror 容器 */
+        .codemirror-container {
             position: relative;
             height: 100%;
             width: 100%;
-            overflow-x: auto;
-            overflow-y: scroll;
-            font-family: 'Consolas', 'Monaco', monospace;
-            font-size: 12px;
-            line-height: 1.6;
-            -webkit-overflow-scrolling: touch;
+            overflow: hidden;
             flex: 1;
             min-height: 0;
         }
 
-        .virtual-scroll-content {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            pointer-events: none;
-        }
-
-        .virtual-scroll-viewport {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            pointer-events: none;
+        .cm-editor {
+            height: 100%;
         }
 
         /* 行号和代码的包装容器 - 现在应用于每一行 */
@@ -1369,6 +1352,7 @@
                 <div class="toolbar-group">
                     <button id="addBookmarkBtn" title="添加书签">⭐</button>
                     <button id="advancedSearchBtn" title="高级搜索">🔍</button>
+                    <button id="switchViewerBtn" title="切换查看器">🔄</button>
                     <button id="editBtn" disabled>编辑</button>
                     <button id="extractBtn" disabled>提取</button>
                 </div>
